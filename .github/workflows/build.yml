@@ -44,7 +44,7 @@ jobs:
           make build VERSION="${{ inputs.version }}" COMMIT="${GITHUB_SHA::12}" BUILT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           mkdir -p "out/$name"
           cp bin/mg* "out/$name/"
-          if [ -f "out/$name/mg" ]; then mv "out/$name/mg" "out/$name/mg$ext"; fi
+          if [ -n "$ext" ] && [ -f "out/$name/mg" ]; then mv "out/$name/mg" "out/$name/mg$ext"; fi
           cp README.md "out/$name/"
           cd out
           if [ "$GOOS" = windows ]; then zip -qr "$name.zip" "$name"; else tar -czf "$name.tar.gz" "$name"; fi
