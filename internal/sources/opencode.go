@@ -39,7 +39,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -93,24 +92,10 @@ func openCodeDatabases(root string) []string {
 	return matches
 }
 
-var (
-	dbMu    sync.Mutex
-	dbCache = map[string]*sql.DB{}
-)
-
-// openDB opens a database read-only once per process; the handle is shared by all searches.
+// openDB opens a database read-only. Each caller closes it: Windows keeps the file locked
+// until the handle is closed, and tests remove their temporary copies while the process lives.
 func openDB(path string) (*sql.DB, error) {
-	dbMu.Lock()
-	defer dbMu.Unlock()
-	if db, ok := dbCache[path]; ok {
-		return db, nil
-	}
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&_pragma=busy_timeout(5000)")
-	if err != nil {
-		return nil, err
-	}
-	dbCache[path] = db
-	return db, nil
+	return sql.Open("sqlite", "file:"+path+"?mode=ro&_pragma=busy_timeout(5000)")
 }
 
 // SessionsIn lists the sessions of an opencode database: one SourceFile each, Inner = session id.
@@ -123,6 +108,7 @@ func (OpenCode) SessionsIn(path string) ([]ir.SourceFile, bool) {
 	if err != nil {
 		return nil, false
 	}
+	defer db.Close()
 	rows, err := db.Query(`SELECT id, parent_id, title, time_updated FROM session ORDER BY time_updated`)
 	if err != nil {
 		return nil, false // no session table: some other SQLite file
@@ -152,6 +138,7 @@ func (OpenCode) ReadRaw(f ir.SourceFile) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer db.Close()
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

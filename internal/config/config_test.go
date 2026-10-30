@@ -56,16 +56,16 @@ func TestAgentsOwnVariablesMoveTheDefaults(t *testing.T) {
 	t.Setenv("PI_CODING_AGENT_DIR", "/x/pi")
 	c, _ := Load()
 	for k, want := range map[ir.SourceKind][]string{
-		ir.Codex:    {"/x/codex/sessions", "/x/codex/archived_sessions"},
-		ir.Gemini:   {"/x/gem/.gemini/tmp"},
-		ir.Qwen:     {"/x/qwen/projects"},
-		ir.OpenCode: {"/x/data/opencode"},
+		ir.Codex:    {filepath.FromSlash("/x/codex/sessions"), filepath.FromSlash("/x/codex/archived_sessions")},
+		ir.Gemini:   {filepath.FromSlash("/x/gem/.gemini/tmp")},
+		ir.Qwen:     {filepath.FromSlash("/x/qwen/projects")},
+		ir.OpenCode: {filepath.FromSlash("/x/data/opencode")},
 	} {
 		if got := c.Dirs(k); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", k, got, want)
 		}
 	}
-	if got := c.Dirs(ir.OMP); len(got) < 2 || got[0] != "/x/pi/sessions" {
+	if got := c.Dirs(ir.OMP); len(got) < 2 || got[0] != filepath.FromSlash("/x/pi/sessions") {
 		t.Errorf("omp: %v", got)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -191,6 +192,9 @@ func TestSummaryReportsCompleteness(t *testing.T) {
 }
 
 func TestTimeoutIsInconclusiveNotNoMatch(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows' monotonic clock cannot observe a 1ns timeout")
+	}
 	// A search that ran out of time found nothing in what it read: exit 3, never 1.
 	out, code := mg(t, "--timeout", "1ns", "pnpm")
 	if code != 3 || !strings.Contains(out, "inconclusive") || !strings.Contains(out, "TIMED OUT after 1ns") || !strings.Contains(out, "does not mean nothing matches") {

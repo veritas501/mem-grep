@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -331,6 +332,9 @@ func TestEarlyStopReturnsTheNewestHits(t *testing.T) {
 }
 
 func TestTimeoutLeavesFilesUnread(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows' monotonic clock cannot observe a 1ns timeout")
+	}
 	files := spreadSessions(t, 10)
 	q := Query{Patterns: []string{"econnrefused"}, Timeout: time.Nanosecond}
 	hits, st, err := Search(files, q)
