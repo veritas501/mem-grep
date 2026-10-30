@@ -7,6 +7,12 @@ updates:
     groups:
       go-deps:
         patterns: ["*"]
+    ignore:
+      # go.mod is pinned to Go 1.24.0; these releases require a newer toolchain.
+      - dependency-name: modernc.org/sqlite
+        versions: [">= 1.47.0"]
+      - dependency-name: github.com/klauspost/compress
+        versions: [">= 1.20.0"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

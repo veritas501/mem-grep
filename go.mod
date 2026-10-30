@@ -3,9 +3,9 @@ module github.com/veritas501/mem-grep
 go 1.24.0
 
 require (
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.19.2
 	github.com/spf13/cobra v1.10.2
-	modernc.org/sqlite v1.45.0
+	modernc.org/sqlite v1.46.0
 )
 
 require (
