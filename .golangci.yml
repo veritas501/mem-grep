@@ -1,0 +1,21 @@
+version: "2"
+linters:
+  default: standard
+  settings:
+    errcheck:
+      # Idiomatic ignores: closing read-only resources in defer, writing command output, and
+      # rolling back a transaction whose error is already being returned.
+      exclude-functions:
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*os.File).Close
+        - (io.ReadCloser).Close
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+  exclusions:
+    rules:
+      # Tests set up fixtures with calls whose errors the assertions catch anyway.
+      - path: _test\.go
+        linters: [errcheck]

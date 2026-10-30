@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags are needed for git describe
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Runs golangci-lint with inline annotations; `make lint` below adds gofmt and go vet.
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+
+      # The identity is computed once from git and handed to every build below; the Makefile
+      # picks VERSION / COMMIT / BUILT up from the environment (?=).
+      - name: Build identity
+        run: |
+          echo "VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" >> "$GITHUB_ENV"
+          echo "COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo none)" >> "$GITHUB_ENV"
+          echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - run: make lint
+      - run: make test
+      - run: make version
+
+      # VERSION / COMMIT / BUILT go in as build args; the image tag is independent of them.
+      - name: Docker image
+        run: make docker IMAGE_TAG=ci && docker run --rm mem-grep:ci version
