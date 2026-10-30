@@ -16,7 +16,7 @@ BUILT   ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LD_FLAGS := -X $(MODULE)/internal/version.Version=$(VERSION) \
             -X $(MODULE)/internal/version.Commit=$(COMMIT) \
             -X $(MODULE)/internal/version.Built=$(BUILT)
-GO_FLAGS := -trimpath -ldflags "$(LD_FLAGS)"
+GO_FLAGS := -trimpath -ldflags "-s -w $(LD_FLAGS)"
 
 # Docker image tag is independent of the injected version.
 IMAGE     ?= mem-grep
@@ -26,7 +26,7 @@ IMAGE_TAG ?= dev
 BIN  ?= mg
 ARGS ?=
 
-.PHONY: all build install run test lint version clean docker bump help
+.PHONY: all build install run test test-race vet fmt lint ci version clean docker bump help
 
 all: lint test build
 
@@ -47,10 +47,23 @@ run: ## Run mg from source with the version injected: make run ARGS="docker ç½‘ç
 test: ## Run tests (no -ldflags, so version defaults are tested)
 	go test ./...
 
+test-race: ## Run tests with the race detector
+	go test -race ./...
+
+vet: ## Run go vet
+	go vet ./...
+
+fmt: ## Format Go code
+	gofmt -w cmd internal
+
 lint: ## gofmt + go vet (+ golangci-lint when installed)
 	@out=$$(gofmt -l cmd internal); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 	go vet ./...
 	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "golangci-lint not installed; skipped"; fi
+
+ci: ## Run the checks CI runs locally (lint + race tests)
+	$(MAKE) lint
+	$(MAKE) test-race
 
 version: build ## Print the identity of the freshly built binary
 	@for b in $(BINARIES); do $(BIN_DIR)/$$b version; done

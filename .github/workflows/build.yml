@@ -1,0 +1,56 @@
+# Reusable multi-platform build. Called by ci.yml, nightly.yml and release.yml;
+# produces one archive per target named mg_<version>_<goos>_<goarch>.
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version string embedded into the binary
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: mg ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Build and package
+        shell: bash
+        run: |
+          ext=""; [ "$GOOS" = windows ] && ext=".exe"
+          name="mg_${{ inputs.version }}_${GOOS}_${GOARCH}"
+          make build VERSION="${{ inputs.version }}" COMMIT="${GITHUB_SHA::12}" BUILT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p "out/$name"
+          cp bin/mg* "out/$name/"
+          if [ -f "out/$name/mg" ]; then mv "out/$name/mg" "out/$name/mg$ext"; fi
+          cp README.md "out/$name/"
+          cd out
+          if [ "$GOOS" = windows ]; then zip -qr "$name.zip" "$name"; else tar -czf "$name.tar.gz" "$name"; fi
+          rm -rf "$name"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-mg-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: out/*
+          retention-days: 7

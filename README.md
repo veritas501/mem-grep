@@ -1,5 +1,9 @@
 # mem-grep (`mg`)
 
+[![CI](https://github.com/veritas501/mem-grep/actions/workflows/ci.yml/badge.svg)](https://github.com/veritas501/mem-grep/actions/workflows/ci.yml)
+[![Nightly](https://github.com/veritas501/mem-grep/actions/workflows/nightly.yml/badge.svg)](https://github.com/veritas501/mem-grep/releases/tag/nightly)
+[![Go](https://img.shields.io/github/go-mod/go-version/veritas501/mem-grep)](go.mod)
+
 `rg` for past coding-agent sessions. `mg` reads the session logs your agents already keep, renders them into one transcript notation and prints the **turns** (a user message and everything the agent did in response) that match, newest first. No index, no model, no network, no setup.
 
 ```bash
@@ -24,21 +28,47 @@ mg sessions -p edge-proxy --since 2w                          # recent sessions 
 | Gemini CLI 0.66 | `~/.gemini/tmp/<project>/chats` | Checked against sessions the CLI wrote (scripted and real model) |
 | Qwen Code 0.26 | `~/.qwen/projects/<cwd>/chats` | Checked against sessions the CLI wrote (scripted and real model) |
 | opencode 1.19 | `~/.local/share/opencode/opencode.db` (SQLite) | Checked against a database the CLI wrote (scripted and real model) |
-| Claude Code | `~/.claude/projects` | Skeleton from one real session's structure; no fixture yet |
+| Claude Code | `~/.claude/projects` | Skeleton; command wrappers, interrupts and subagent layout checked against real transcripts; no fixture yet |
 | Codex | `~/.codex/sessions`, `archived_sessions` (also `.jsonl.zst`) | Skeleton following Codex's own filtering rules; no fixture yet |
 
 Formats come from each agent's source code and are written down, with their sources, in [docs/session-formats.md](docs/session-formats.md). Adding an agent is described there too.
 
 ## Install
 
+### Prebuilt binaries
+
+Download an archive for your platform from
+[Releases](https://github.com/veritas501/mem-grep/releases). The rolling
+[`nightly`](https://github.com/veritas501/mem-grep/releases/tag/nightly)
+pre-release is rebuilt from the default branch every day:
+
+| Artifact | Platforms |
+|---|---|
+| `mg_<version>_<os>_<arch>` | linux, darwin, windows × amd64, arm64 |
+
+Verify downloads with `SHA256SUMS.txt` from the same release.
+
+### `go install`
+
+```bash
+go install github.com/veritas501/mem-grep/cmd/mg@latest
+```
+
+### From source
+
 Requires Go ≥ 1.24:
 
 ```bash
-make install            # builds and installs ~/.local/bin/mg (override with PREFIX=…)
-mg version              # mg v0.1.0-3-gabc1234 (commit=abc1234, built=2026-10-28T08:00:00Z)
+git clone https://github.com/veritas501/mem-grep.git
+cd mem-grep
+make build              # bin/mg
+make install            # ~/.local/bin/mg (override with PREFIX=…)
+./bin/mg version        # mg v0.1.0-3-gabc1234 (commit=abc1234, built=…)
 ```
 
-`make build` alone puts the binary in `bin/`. Copy [`skill/mem-grep/SKILL.md`](skill/mem-grep/SKILL.md) to your agent's skills directory so it reaches for `mg` whenever the answer may be in earlier work.
+`make ci` runs the local checks CI runs (lint + race tests). Copy
+[`skill/mem-grep/SKILL.md`](skill/mem-grep/SKILL.md) to your agent's skills
+directory so it reaches for `mg` whenever the answer may be in earlier work.
 
 ## Everyday use
 

@@ -1,38 +1,85 @@
-name: ci
+name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # tags are needed for git describe
-
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-
-      # Runs golangci-lint with inline annotations; `make lint` below adds gofmt and go vet.
-      - uses: golangci/golangci-lint-action@v8
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.5.0
-
-      # The identity is computed once from git and handed to every build below; the Makefile
-      # picks VERSION / COMMIT / BUILT up from the environment (?=).
-      - name: Build identity
+          version: v2.15.0
+      - name: gofmt
+        run: test -z "$(gofmt -l cmd internal)" || { gofmt -l cmd internal; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint (windows target)
+        run: GOOS=windows golangci-lint run ./...
+      - name: go mod tidy
         run: |
-          echo "VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" >> "$GITHUB_ENV"
-          echo "COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo none)" >> "$GITHUB_ENV"
-          echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
 
-      - run: make lint
-      - run: make test
-      - run: make version
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: go vet
+        run: go vet ./...
+      - name: go test (race)
+        if: runner.os == 'Linux'
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: go test
+        if: runner.os != 'Linux'
+        run: go test ./...
+      - name: Coverage summary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          {
+            echo '### Go coverage'
+            echo '```'
+            go tool cover -func=coverage.out | tail -1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # VERSION / COMMIT / BUILT go in as build args; the image tag is independent of them.
-      - name: Docker image
+  build:
+    name: Cross-build
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ci-${{ github.run_number }}
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags are needed for git describe
+      - name: Build and smoke-test
         run: make docker IMAGE_TAG=ci && docker run --rm mem-grep:ci version

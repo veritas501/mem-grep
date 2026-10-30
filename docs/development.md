@@ -19,7 +19,11 @@ Code lives in packages: the entry point in `cmd/mg`, everything else under `inte
 | `make install` | Build and install to `$(PREFIX)` (default `~/.local/bin`) |
 | `make run ARGS="docker 网络"` | Run from source with the version injected, reading your real sessions |
 | `make test` | `go test ./...` |
+| `make test-race` | `go test -race ./...` |
+| `make vet` | `go vet ./...` |
+| `make fmt` | Format the Go tree with gofmt |
 | `make lint` | gofmt check, `go vet`, golangci-lint (`.golangci.yml`; must report 0 issues) |
+| `make ci` | The local equivalent of CI: lint + race tests |
 | `make version` | Build and print the injected identity |
 | `make clean` | Remove `bin/` |
 | `make docker` | Build image `$(IMAGE):$(IMAGE_TAG)` (default `mem-grep:dev`) |
@@ -61,11 +65,18 @@ make bump BUMP=patch        # or minor, major, or an explicit vX.Y.Z
 
 It refuses an existing tag. Push with `git push origin HEAD && git push origin vX.Y.Z`.
 
+Pushing the tag runs `.github/workflows/release.yml`, which calls the reusable
+`build.yml` for linux, darwin and windows on amd64 and arm64, packages
+`mg_<version>_<os>_<arch>` archives with the README, writes `SHA256SUMS.txt` and
+creates the GitHub release with generated notes. `nightly.yml` does the same on a
+schedule into the rolling `nightly` pre-release; dispatch it manually with
+`force` to rebuild without new commits.
+
 ## Docker and CI
 
 The Dockerfile builds the static binary (`CGO_ENABLED=0`) into a distroless image; the entry point is `mg`, so mount session directories read-only and pass them with `--path`. It never runs git: `VERSION`, `COMMIT` and `BUILT` arrive as build args (`make docker` passes them) and default to `dev` / `none` / `unknown`. The image tag (`IMAGE_TAG`, default `dev`) is independent of the injected version.
 
-CI (`.github/workflows/ci.yml`) checks out full history (for `git describe`), sets up Go from `go.mod`, runs golangci-lint, computes the identity once into the environment, then runs `make lint`, `make test`, `make version`, and builds the image and runs `version` in it.
+CI (`.github/workflows/ci.yml`) runs lint (golangci-lint, gofmt, `go vet`, a `GOOS=windows` lint pass and a `go mod tidy` check), tests on Ubuntu, macOS and Windows (race detector and coverage on Linux), a six-target cross-build through the reusable `build.yml`, and a Docker build with an `mg version` smoke test. Dependabot checks Go modules weekly and GitHub Actions monthly.
 
 ## Tests and fixtures
 

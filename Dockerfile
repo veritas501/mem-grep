@@ -10,7 +10,7 @@ ARG VERSION=dev
 ARG COMMIT=none
 ARG BUILT=unknown
 RUN CGO_ENABLED=0 go build -trimpath \
-      -ldflags "-X github.com/veritas501/mem-grep/internal/version.Version=${VERSION} \
+      -ldflags "-s -w -X github.com/veritas501/mem-grep/internal/version.Version=${VERSION} \
                 -X github.com/veritas501/mem-grep/internal/version.Commit=${COMMIT} \
                 -X github.com/veritas501/mem-grep/internal/version.Built=${BUILT}" \
       -o /out/ ./cmd/mg

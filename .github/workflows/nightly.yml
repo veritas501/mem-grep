@@ -1,0 +1,87 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 18 * * *" # 02:17 Asia/Shanghai
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build even if there are no new commits since the last nightly
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          last=$(git rev-parse -q --verify "refs/tags/nightly^{commit}" || true)
+          if [ "$FORCE" != true ] && [ "$last" = "$GITHUB_SHA" ]; then
+            echo "No new commits since the last nightly ($last); skipping."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+
+  publish:
+    name: Publish nightly
+    needs: [prepare, build]
+    if: ${{ !cancelled() && needs.prepare.outputs.build == 'true' && needs.build.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-mg-*
+          path: dist
+          merge-multiple: true
+      - name: Require every target
+        run: test "$(ls dist/mg_* | wc -l)" -eq 6 || { echo "missing builds" >&2; exit 1; }
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+      - name: Replace the rolling nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          gh release delete nightly --cleanup-tag --yes || true
+          cat > notes.md <<NOTES
+          Automated nightly build of \`${GITHUB_SHA::12}\` (\`$VERSION\`).
+
+          Nightly builds are untested snapshots of the default branch and may be broken.
+
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          NOTES
+          gh release create nightly dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Nightly $VERSION" \
+            --notes-file notes.md
