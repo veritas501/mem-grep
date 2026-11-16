@@ -28,6 +28,7 @@ mg sessions -p edge-proxy --since 2w                          # recent sessions 
 | Gemini CLI 0.66 | `~/.gemini/tmp/<project>/chats` | Checked against sessions the CLI wrote (scripted and real model) |
 | Qwen Code 0.26 | `~/.qwen/projects/<cwd>/chats` | Checked against sessions the CLI wrote (scripted and real model) |
 | opencode 1.19 | `~/.local/share/opencode/opencode.db` (SQLite) | Checked against a database the CLI wrote (scripted and real model) |
+| DeepSeek Harness | `~/.dsh/sessions` (`DSH_HOME` replaces `~/.dsh`) | Checked against sessions the harness wrote |
 | Claude Code | `~/.claude/projects` | Skeleton; command wrappers, interrupts and subagent layout checked against real transcripts; no fixture yet |
 | Codex | `~/.codex/sessions`, `archived_sessions` (also `.jsonl.zst`) | Skeleton following Codex's own filtering rules; no fixture yet |
 
@@ -96,6 +97,7 @@ mg has no configuration file: everything is a flag or an environment variable, a
 | `MG_GEMINI_DIRS` | `~/.gemini/tmp` | Gemini CLI (`GEMINI_CLI_HOME` replaces `~`) |
 | `MG_QWEN_DIRS` | `~/.qwen/projects` | Qwen Code (`QWEN_HOME` replaces `~/.qwen`) |
 | `MG_OPENCODE_DIRS` | `~/.local/share/opencode` | opencode; the directory holds `opencode.db` (`XDG_DATA_HOME` is honoured) |
+| `MG_DSH_DIRS` | `~/.dsh/sessions` | DeepSeek Harness (`DSH_HOME` replaces `~/.dsh`) |
 | `MG_SUBAGENTS` | `1` | `0` leaves subagent sessions out |
 | `MG_ADVISOR` | `0` | `1` includes omp advisor runs |
 

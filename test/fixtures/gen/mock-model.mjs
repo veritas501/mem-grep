@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // A scripted stand-in for a model API, used to make coding agents write session logs without a real
 // model or any credentials. It speaks the OpenAI chat-completions protocol (opencode, Qwen Code, …)
-// and the Gemini generateContent protocol (Gemini CLI). The reply depends only on the request:
+// the Gemini generateContent protocol (Gemini CLI) and the DeepSeek Messages protocol, which is
+// the Anthropic /v1/messages SSE stream (DeepSeek Harness). The reply depends only on the request:
 // the last user message names a scenario ("SCENARIO list-files …") and the number of tool results
 // since then picks the step. Tool names and argument names come from the tools the agent offers,
 // so one script serves every agent. Everything else (titles, summaries, classifiers) gets a short
@@ -124,6 +125,42 @@ function gemini(req, body, res, stream) {
   res.end(`data: ${JSON.stringify(out)}\r\n\r\n`);
 }
 
+// ---- DeepSeek Messages (Anthropic-style SSE) -----------------------------------------------
+// The stream shape dsh-llm-deepseek's translate() accepts: message_start, then per block
+// content_block_start / content_block_delta / content_block_stop, then message_delta and
+// message_stop. Tool schemas arrive as {name, input_schema}; results as role "user" tool_result
+// blocks, which also mark how far the scenario has progressed.
+function deepseek(req, body, res) {
+  const msgs = body.messages ?? [];
+  const textOf = (m) => (Array.isArray(m.content) ? m.content : []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  const isResult = (m) => m.role === "user" && (Array.isArray(m.content) ? m.content : []).some((b) => b.type === "tool_result");
+  let last = -1;
+  msgs.forEach((m, i) => { if (m.role === "user" && !isResult(m)) last = i; });
+  const steps = msgs.slice(last + 1).filter(isResult).length;
+  const tools = (body.tools ?? []).map((t) => ({ name: t.name, schema: t.input_schema }));
+  const p = plan(last >= 0 ? textOf(msgs[last]) : "", steps, tools);
+  const model = body.model ?? "mock";
+  const blocks = [];
+  if (p.text) blocks.push({ type: "text", text: p.text });
+  if (p.call) blocks.push({ type: "tool_use", id: id("toolu"), name: p.call.name, input: p.call.args });
+  if (blocks.length === 0) blocks.push({ type: "text", text: "ok" });
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+  const send = (o) => res.write(`event: ${o.type}\ndata: ${JSON.stringify(o)}\n\n`);
+  send({ type: "message_start", message: { id: id("msg"), type: "message", role: "assistant", model, usage: { input_tokens: 100 + steps * 50, output_tokens: 0 } } });
+  blocks.forEach((block, index) => {
+    const start = block.type === "tool_use"
+      ? { type: "tool_use", id: block.id, name: block.name, input: {} }
+      : { type: "text", text: "" };
+    send({ type: "content_block_start", index, content_block: start });
+    if (block.type === "text") send({ type: "content_block_delta", index, delta: { type: "text_delta", text: block.text } });
+    else send({ type: "content_block_delta", index, delta: { type: "input_json_delta", partial_json: JSON.stringify(block.input) } });
+    send({ type: "content_block_stop", index });
+  });
+  send({ type: "message_delta", delta: { stop_reason: p.call ? "tool_use" : "end_turn" }, usage: { output_tokens: 20 } });
+  send({ type: "message_stop" });
+  res.end();
+}
+
 http.createServer((req, res) => {
   let raw = "";
   req.on("data", (d) => (raw += d));
@@ -141,6 +178,7 @@ http.createServer((req, res) => {
       else if (/:streamGenerateContent$/.test(url)) gemini(req, body, res, true);
       else if (/:generateContent$/.test(url)) gemini(req, body, res, false);
       else if (/:countTokens$/.test(url)) { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ totalTokens: 100 })); }
+      else if (/\/messages$/.test(url)) deepseek(req, body, res);
       else { res.writeHead(404, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: "mock: no route " + url } })); }
     } catch (e) {
       res.writeHead(500, { "content-type": "application/json" });

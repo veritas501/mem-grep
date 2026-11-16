@@ -36,7 +36,7 @@ mg search show                     # a term that is also a command name
 | `-w, --word` | Whole words (ASCII word boundaries) |
 | `--any` | A turn matches when any term matches |
 | `-r, --role R` | Only search and print lines of these roles: `user`, `assistant`, `tool` (calls), `result` (tool output), `shell` (commands the user ran), `task` (subagent tasks), `note` (branches, interrupts). Each turn's opening line is still printed as its anchor |
-| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode` |
+| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode`, `dsh` |
 | `-p, --project TEXT` | Sessions whose working directory contains TEXT |
 | `--since WHEN`, `--until WHEN` | Turn time bounds: `36h`, `7d`, `2w`, `3m`, `1y`, `2026-10-01` |
 | `-n, --limit N` | At most N results (default 20; 0 = all) |

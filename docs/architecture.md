@@ -3,7 +3,7 @@
 ## Data flow
 
 ```
- session logs (omp, Gemini CLI, Qwen Code, opencode; Claude Code and Codex adapters are unverified)
+ session logs (omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness; Claude Code and Codex adapters are unverified)
         │  internal/sources: one adapter per agent → agent-neutral IR (internal/ir)
         ▼
  transcript lines  (roles, tool calls and results, branches, interrupts; secrets redacted on demand)
@@ -22,7 +22,7 @@ Package map:
 | `internal/cli/mg` | The commands (cobra): search, show, sessions, version; flags, printing, exit codes |
 | `internal/grep` | The engine: query compilation, raw-byte prefilter, parallel turn matching, early stop, refs, snippets, `--top` ([mem-grep.md](mem-grep.md)) |
 | `internal/ir` | The intermediate representation everything downstream sees |
-| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go` checked against sessions the agents wrote; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
+| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go`, `dsh.go` checked against sessions the agents wrote; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
 | `internal/config` | Where each agent keeps its sessions: defaults, overridden by `MG_<AGENT>_DIRS` |
 | `internal/util`, `internal/version` | Redaction and text helpers, build identity |
 

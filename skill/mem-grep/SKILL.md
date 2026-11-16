@@ -5,7 +5,7 @@ description: Before coding, use mg to search past sessions for prior fixes, deci
 
 # mg: grep through past sessions
 
-`mg` reads the session logs of omp, Gemini CLI, Qwen Code, opencode, Claude Code and Codex directly and prints matching **turns** (a user message and everything the agent did in response), newest first. Every result has a reference like `omp:01a181a6-b02b#2` that `mg show` accepts. No index, model or network is involved; most calls take 0.1–0.3 s, so make several small ones rather than one clever one.
+`mg` reads the session logs of omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness, Claude Code and Codex directly and prints matching **turns** (a user message and everything the agent did in response), newest first. Every result has a reference like `omp:01a181a6-b02b#2` that `mg show` accepts. No index, model or network is involved; most calls take 0.1–0.3 s, so make several small ones rather than one clever one.
 
 ## Use it before you start
 
@@ -58,7 +58,7 @@ A hit is often the first try, not the outcome. Signs: "let's try", "workaround",
 ## Fast: let mg skip work
 
 - **Keep the default `-n 20`.** mg reads the newest sessions first and stops once older ones cannot make the list (the footer then says "at least N"). Use `-n 0` only when exact totals matter: it reads everything.
-- **Bound the search**: `--since 2w`, `-p <part of the project dir>`, `-a omp|claude|codex|gemini|qwen|opencode` and `-r` let mg skip whole files and records unread. They speed things up more than extra terms do.
+- **Bound the search**: `--since 2w`, `-p <part of the project dir>`, `-a omp|claude|codex|gemini|qwen|opencode|dsh` and `-r` let mg skip whole files and records unread. They speed things up more than extra terms do.
 - **Prefer plain words to regexes.** A literal term (or a regex that starts with literal text, like `github\.com/…`) lets mg rule out files and records from their raw bytes; a regex without literal text (`\d{4,}`) cannot, and is the slowest kind of query.
 - **Don't lead with words mg writes itself.** `the`, `user`, `tool`, `failed`, `branch` and bare numbers also occur in mg's own notation, so they can never be used to skip anything; combine them with a distinctive term.
 - **Bound the work and the output** when a call must come back quickly or small: `--timeout 2s` stops searching after 2 seconds (newest sessions first), `--max-chars 3000` stops printing after about 3000 characters (the first result is always printed). Both say so in the footer.

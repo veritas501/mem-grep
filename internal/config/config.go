@@ -2,13 +2,15 @@
 // everything is set through environment variables.
 //
 //	MG_<AGENT>_DIRS  session roots of one agent, separated like PATH (":" on Unix): MG_OMP_DIRS,
-//	                 MG_CLAUDE_DIRS, MG_CODEX_DIRS, MG_GEMINI_DIRS, MG_QWEN_DIRS, MG_OPENCODE_DIRS.
+//	                 MG_CLAUDE_DIRS, MG_CODEX_DIRS, MG_GEMINI_DIRS, MG_QWEN_DIRS, MG_OPENCODE_DIRS,
+//	                 MG_DSH_DIRS.
 //	                 Replaces that agent's default roots.
 //	MG_SUBAGENTS     search subagent sessions too (default 1)
 //	MG_ADVISOR       search omp advisor runs too (default 0)
 //
 // The defaults follow each agent's own conventions, including the variables the agents
-// themselves honour (PI_CODING_AGENT_DIR, CODEX_HOME, GEMINI_CLI_HOME, QWEN_HOME, XDG_DATA_HOME).
+// themselves honour (PI_CODING_AGENT_DIR, CODEX_HOME, GEMINI_CLI_HOME, QWEN_HOME, XDG_DATA_HOME,
+// DSH_HOME).
 package config
 
 import (
@@ -118,6 +120,7 @@ func (c *Config) Dirs(k ir.SourceKind) []string {
 //   - gemini: ~/.gemini/tmp (GEMINI_CLI_HOME replaces ~); sessions are <tmp>/<project>/chats/*.jsonl
 //   - qwen:   ~/.qwen/projects (QWEN_HOME replaces ~/.qwen); sessions are <project>/chats/*.jsonl
 //   - opencode: $XDG_DATA_HOME/opencode (~/.local/share/opencode); one SQLite database, opencode.db
+//   - dsh:    $DSH_HOME/sessions (DSH_HOME defaults to ~/.dsh)
 func DefaultDirs(k ir.SourceKind) []string {
 	switch k {
 	case ir.OMP:
@@ -144,6 +147,12 @@ func DefaultDirs(k ir.SourceKind) []string {
 			dir = filepath.Join(homeDir(), ".qwen")
 		}
 		return []string{filepath.Join(dir, "projects")}
+	case ir.Dsh:
+		home := os.Getenv("DSH_HOME")
+		if home == "" {
+			home = filepath.Join(homeDir(), ".dsh")
+		}
+		return []string{filepath.Join(home, "sessions")}
 	}
 	return nil
 }

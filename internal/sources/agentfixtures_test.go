@@ -194,6 +194,33 @@ func TestOpenCodeFixtureWrittenByTheCLI(t *testing.T) {
 	}
 }
 
+func TestDshFixtureWrittenByTheHarness(t *testing.T) {
+	r := renderAll(t, ir.Dsh, "dsh/sessions")
+	list, rec := r["list-files"], r["recover"]
+	if list == nil || rec == nil {
+		t.Fatalf("sessions found: %v", keys(r))
+	}
+	mustContainInOrder(t, "dsh list-files", list.text,
+		"USER:", "SCENARIO list-files", "ASSISTANT: 我先看看目录里有什么。",
+		"  → bash(command=ls -la description=run)", "  ✓ bash: ", "  → read(", "  ✓ read: ",
+		"ASSISTANT: 目录里有 notes.txt", "ECONNREFUSED 127.0.0.1:5432",
+		"USER:", "SCENARIO followup", "ASSISTANT: 好的，不需要更多改动。")
+	mustContainInOrder(t, "dsh recover", rec.text,
+		"USER:", "SCENARIO recover", "  → bash(command=cat missing.txt description=run)",
+		"  ✗ bash failed: ", "No such file or directory",
+		"ASSISTANT: missing.txt 不存在", "  → bash(command=echo recovered description=run)", "  ✓ bash:", "ASSISTANT: 已恢复")
+	for label, x := range r {
+		if x.sess.Cwd == "" || x.sess.SessionID == "" || x.sess.StartedAt == "" {
+			t.Errorf("dsh %s: header fields missing: %+v", label, x.sess)
+		}
+		if !strings.HasSuffix(x.file.Key, ".jsonl") || strings.HasSuffix(x.file.Key, ".zstd") {
+			t.Errorf("dsh %s: the key is the plain name: %s", label, x.file.Key)
+		}
+		// the runtime reminder the harness injects, and thinking, never reach the transcript
+		assertNoNoise(t, "dsh "+label, x.text, "system-reminder", "hidden reasoning")
+	}
+}
+
 func TestAgentsAreToldApartOnRealFiles(t *testing.T) {
 	check := func(rel string, want ir.SourceKind) {
 		t.Helper()

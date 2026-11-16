@@ -13,10 +13,10 @@ import (
 func isolate(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	for _, v := range []string{"PI_CODING_AGENT_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "QWEN_HOME", "XDG_DATA_HOME"} {
+	for _, v := range []string{"PI_CODING_AGENT_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "QWEN_HOME", "XDG_DATA_HOME", "DSH_HOME"} {
 		t.Setenv(v, "")
 	}
-	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode} {
+	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode, ir.Dsh} {
 		t.Setenv(EnvName(k), "")
 	}
 	t.Setenv("HOME", home)
@@ -37,6 +37,7 @@ func TestDefaultDirs(t *testing.T) {
 		ir.Gemini:   {filepath.Join(home, ".gemini", "tmp")},
 		ir.Qwen:     {filepath.Join(home, ".qwen", "projects")},
 		ir.OpenCode: {filepath.Join(home, ".local", "share", "opencode")},
+		ir.Dsh:      {filepath.Join(home, ".dsh", "sessions")},
 	} {
 		if got := c.Dirs(k); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", k, got, want)
@@ -54,12 +55,14 @@ func TestAgentsOwnVariablesMoveTheDefaults(t *testing.T) {
 	t.Setenv("QWEN_HOME", "/x/qwen")
 	t.Setenv("XDG_DATA_HOME", "/x/data")
 	t.Setenv("PI_CODING_AGENT_DIR", "/x/pi")
+	t.Setenv("DSH_HOME", "/x/dsh")
 	c, _ := Load()
 	for k, want := range map[ir.SourceKind][]string{
 		ir.Codex:    {filepath.FromSlash("/x/codex/sessions"), filepath.FromSlash("/x/codex/archived_sessions")},
 		ir.Gemini:   {filepath.FromSlash("/x/gem/.gemini/tmp")},
 		ir.Qwen:     {filepath.FromSlash("/x/qwen/projects")},
 		ir.OpenCode: {filepath.FromSlash("/x/data/opencode")},
+		ir.Dsh:      {filepath.FromSlash("/x/dsh/sessions")},
 	} {
 		if got := c.Dirs(k); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", k, got, want)
