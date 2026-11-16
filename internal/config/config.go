@@ -44,15 +44,22 @@ func exists(p string) bool {
 
 func defaultSessionDirs() []string {
 	var dirs []string
+	add := func(d string) {
+		d = filepath.Clean(d)
+		for _, existing := range dirs {
+			if existing == d {
+				return
+			}
+		}
+		dirs = append(dirs, d)
+	}
 	if d := os.Getenv("PI_CODING_AGENT_DIR"); d != "" {
-		dirs = append(dirs, filepath.Join(d, "sessions"))
+		add(filepath.Join(d, "sessions"))
 	}
 	omp := filepath.Join(homeDir(), ".omp", "agent", "sessions")
-	if len(dirs) == 0 || dirs[0] != omp {
-		dirs = append(dirs, omp)
-	}
+	add(omp)
 	if pi := filepath.Join(homeDir(), ".pi", "agent", "sessions"); exists(pi) {
-		dirs = append(dirs, pi)
+		add(pi)
 	}
 	return dirs
 }
@@ -103,7 +110,17 @@ func (c *Config) Dirs(k ir.SourceKind) []string {
 		var dirs []string
 		for _, d := range filepath.SplitList(v) {
 			if d != "" {
-				dirs = append(dirs, d)
+				d = filepath.Clean(d)
+				dup := false
+				for _, existing := range dirs {
+					if existing == d {
+						dup = true
+						break
+					}
+				}
+				if !dup {
+					dirs = append(dirs, d)
+				}
 			}
 		}
 		if len(dirs) > 0 {
