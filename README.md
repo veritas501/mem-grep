@@ -4,7 +4,7 @@
 [![Nightly](https://github.com/veritas501/mem-grep/actions/workflows/nightly.yml/badge.svg)](https://github.com/veritas501/mem-grep/releases/tag/nightly)
 [![Go](https://img.shields.io/github/go-mod/go-version/veritas501/mem-grep)](go.mod)
 
-`rg` for past coding-agent sessions. `mg` reads the session logs your agents already keep, renders them into one transcript notation and prints the **turns** (a user message and everything the agent did in response) that match, newest first. No index, no model, no network, no setup.
+`rg` for past coding-agent sessions. `mg` reads the session logs your agents already keep (and the memory files ZCode keeps beside them), renders them into one transcript notation and prints the **turns** (a user message and everything the agent did in response) that match, newest first. No index, no model, no network, no setup.
 
 ```bash
 mg docker '网络|network' '修|fix|恢复|好了'                      # how did we fix the docker network last time?
@@ -29,6 +29,7 @@ mg sessions -p edge-proxy --since 2w                          # recent sessions 
 | Qwen Code 0.26 | `~/.qwen/projects/<cwd>/chats` | Checked against sessions the CLI wrote (scripted and real model) |
 | opencode 1.19 | `~/.local/share/opencode/opencode.db` (SQLite) | Checked against a database the CLI wrote (scripted and real model) |
 | DeepSeek Harness | `~/.dsh/sessions` (`DSH_HOME` replaces `~/.dsh`) | Checked against sessions the harness wrote |
+| ZCode 4.0 (zcode 0.18) | `~/.zcode/cli`: `db/db.sqlite` (SQLite) and the memory files in `memories/projects/*/memory` | Checked against a database and a memory ZCode wrote (scripted model) and a real database |
 | Claude Code | `~/.claude/projects` | Skeleton; command wrappers, interrupts and subagent layout checked against real transcripts; no fixture yet |
 | Codex | `~/.codex/sessions`, `archived_sessions` (also `.jsonl.zst`) | Skeleton following Codex's own filtering rules; no fixture yet |
 
@@ -76,7 +77,8 @@ directory so it reaches for `mg` whenever the answer may be in earlier work.
 ```bash
 mg TERM...                      # search; TERM is "a|b" for alternatives, all TERMs in one turn
 mg --any kubectl helm           # either term
-mg -r user 'always|never|prefer'   # only lines of a role: user, assistant, tool, result, shell, task, note
+mg -r user 'always|never|prefer'   # only lines of a role: user, assistant, tool, result, shell, task, note, memory
+mg -r memory 'test|测试'         # only what an agent wrote into its memory files (ZCode)
 mg --since 2w -p shop-api pnpm  # bound by time and project (substring of the working directory)
 mg show REF -B 1 -A 2           # open a result with its neighbours; REF is agent:id#turn, #from-to, or a file path
 mg sessions --since 1w          # list sessions, newest first
@@ -98,6 +100,7 @@ mg has no configuration file: everything is a flag or an environment variable, a
 | `MG_QWEN_DIRS` | `~/.qwen/projects` | Qwen Code (`QWEN_HOME` replaces `~/.qwen`) |
 | `MG_OPENCODE_DIRS` | `~/.local/share/opencode` | opencode; the directory holds `opencode.db` (`XDG_DATA_HOME` is honoured) |
 | `MG_DSH_DIRS` | `~/.dsh/sessions` | DeepSeek Harness (`DSH_HOME` replaces `~/.dsh`) |
+| `MG_ZCODE_DIRS` | `~/.zcode/cli` | ZCode's CLI storage: sessions in `db/db.sqlite`, memories in `memories/projects` (`ZCODE_STORAGE_DIR` replaces `~/.zcode`; `$ZCODE_DATA_BASE_DIR/.zcode/cli` is read too when set) |
 | `MG_SUBAGENTS` | `1` | `0` leaves subagent sessions out |
 | `MG_ADVISOR` | `0` | `1` includes omp advisor runs |
 

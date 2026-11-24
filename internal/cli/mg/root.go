@@ -108,7 +108,7 @@ func NewRoot() *cobra.Command {
 	root.SetVersionTemplate(version.String("mg") + "\n")
 	root.CompletionOptions.DisableDefaultCmd = true
 	pf := root.PersistentFlags()
-	pf.StringSliceVarP(&o.agents, "agent", "a", nil, "only these agents: omp, claude, codex, gemini, qwen, opencode, dsh (repeatable or comma-separated)")
+	pf.StringSliceVarP(&o.agents, "agent", "a", nil, "only these agents: omp, claude, codex, gemini, qwen, opencode, dsh, zcode (repeatable or comma-separated)")
 	pf.StringVarP(&o.project, "project", "p", "", "only sessions whose working directory contains this text")
 	pf.StringVar(&o.since, "since", "", "only turns at or after this time: 36h, 7d, 2w, 3m, 1y or 2026-10-01")
 	pf.StringVar(&o.until, "until", "", "only turns before this time (same forms as --since)")
@@ -163,7 +163,7 @@ func addSearchFlags(c *cobra.Command, o *options) {
 	f.BoolVarP(&o.caseSens, "case-sensitive", "s", false, "match case (default: ignore case)")
 	f.BoolVarP(&o.word, "word", "w", false, "match whole words only")
 	f.BoolVar(&o.any, "any", false, "a turn matches when any term matches (default: all terms)")
-	f.StringSliceVarP(&o.roles, "role", "r", nil, "only match lines of these roles: user, assistant, tool, result, shell, task, note")
+	f.StringSliceVarP(&o.roles, "role", "r", nil, "only match lines of these roles: user, assistant, tool, result, shell, task, note, memory")
 	if c.Name() != "sessions" {
 		f.IntVarP(&o.context, "context", "C", 0, "also print N lines around each matched line of the turn")
 		f.BoolVar(&o.full, "full", false, "print whole turns, uncut")
@@ -217,10 +217,10 @@ func (o *options) parseRoles() ([]ir.Role, error) {
 	for _, r := range o.roles {
 		role := ir.Role(strings.ToLower(strings.TrimSpace(r)))
 		switch role {
-		case ir.RoleUser, ir.RoleAssistant, ir.RoleTool, ir.RoleResult, ir.RoleShell, ir.RoleTask, ir.RoleNote:
+		case ir.RoleUser, ir.RoleAssistant, ir.RoleTool, ir.RoleResult, ir.RoleShell, ir.RoleTask, ir.RoleNote, ir.RoleMemory:
 			out = append(out, role)
 		default:
-			return nil, fmt.Errorf("unknown role %q (user, assistant, tool, result, shell, task, note)", r)
+			return nil, fmt.Errorf("unknown role %q (user, assistant, tool, result, shell, task, note, memory)", r)
 		}
 	}
 	return out, nil

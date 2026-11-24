@@ -3,7 +3,7 @@
 ## Data flow
 
 ```
- session logs (omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness; Claude Code and Codex adapters are unverified)
+ session logs (omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness, ZCode with its memory files; Claude Code and Codex adapters are unverified)
         │  internal/sources: one adapter per agent → agent-neutral IR (internal/ir)
         ▼
  transcript lines  (roles, tool calls and results, branches, interrupts; secrets redacted on demand)
@@ -22,7 +22,7 @@ Package map:
 | `internal/cli/mg` | The commands (cobra): search, show, sessions, version; flags, printing, exit codes |
 | `internal/grep` | The engine: query compilation, raw-byte prefilter, parallel turn matching, early stop, refs, snippets, `--top` ([mem-grep.md](mem-grep.md)) |
 | `internal/ir` | The intermediate representation everything downstream sees |
-| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go`, `dsh.go` checked against sessions the agents wrote; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
+| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go`, `dsh.go`, `zcode.go` checked against sessions the agents wrote; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
 | `internal/config` | Where each agent keeps its sessions: defaults, overridden by `MG_<AGENT>_DIRS` |
 | `internal/util`, `internal/version` | Redaction and text helpers, build identity |
 
@@ -32,7 +32,8 @@ Every agent writes a different log format. Adapters (`sources.Adapter`) hide tha
 
 - `ir.Line` is one rendered transcript line: role, text, the id of the source record, whether it starts a turn, and the record's **byte range** in the (decompressed) file. The ranges let a caller resume or re-read a part of a file without knowing its format; mg uses them to skim records it can rule out.
 - `ir.Line.Success` carries a tool result's structured outcome when the source has one (a failing shell command in Gemini CLI or opencode is a "successful" tool call with an exit code; the adapters turn that into a failure).
-- Sessions need not be files: `SourceFile.Inner` names a session inside a shared database (opencode). Such an adapter builds the session's byte stream itself (`sources.RawReader`), offsets refer to it, and `Size` is taken from it once opened. `sources.Container` lists the sessions of a database given with `--path`.
+- Sessions need not be files: `SourceFile.Inner` names a session inside a shared database (opencode, ZCode). Such an adapter builds the session's byte stream itself (`sources.RawReader`), offsets refer to it, and `Size` is taken from it once opened. `sources.Container` lists the sessions of a database given with `--path`.
+- A memory file (ZCode) is a session too: one turn of `ir.RoleMemory` lines, read through the same kind of stream (`Inner` is its `mem-…` id, `Key` its path), with `Cwd` set to the project it belongs to. The engine needs no special case for it.
 - `ir.SourceFile.Key` identifies a session. It equals the path except where an agent moves files between representations (Codex compresses cold rollouts to `.jsonl.zst`, so its key is the plain `.jsonl` path) or keeps several sessions in one file (opencode: `<db>#<session id>`). mg identifies sessions by key, never by path.
 - `ir.Session.SkipReason` marks sessions that are not the user's conversation (Codex memory consolidation, non-interactive `codex exec`); mg skips them.
 - Searches read faster through `sources.OpenBytes` with `ScanOptions`: the bytes already read are parsed without reading the file again, records a `Keep` filter rejects are only skimmed for the tree's structure and come back as `ir.Line{Elided: true}` placeholders, and `Raw` skips redaction for the caller to redact candidates. `sources.Synthetic` lists the text renderers write themselves; a renderer that adds notation must add it there, or mg may skip files that match ([mem-grep.md](mem-grep.md#how-a-search-works)).
@@ -54,6 +55,7 @@ USER SHELL $ git status (exit 0)         a command the user ran by hand
   [assistant turn aborted by the user]   an interruption
 [user ran /clear — …]                    a context reset
 TASK for subagent "scout": …             the job handed to a subagent
+MEMORY feedback_x.md [feedback]: …       a memory file: its name, type and description; its lines follow
 ```
 
 Thinking, system and developer messages and compaction summaries (they repeat earlier content) are dropped.
@@ -62,7 +64,7 @@ Thinking, system and developer messages and compaction summaries (they repeat ea
 
 - **Redaction** (`util.Redact`) runs before a line is matched or printed: API keys, tokens, private keys, JWTs, `password=…`-style assignments. Matching may run on unredacted text for speed, but a candidate turn is redacted and matched again, so a secret is never found or shown.
 - **History is data.** Everything mg prints was written by someone else at some point (earlier prompts, tool output, web pages an agent read). The skill says so explicitly; mg itself never executes anything it reads.
-- **Offline.** mg opens files read-only (opencode's database too) and makes no network call.
+- **Offline.** mg opens files read-only (the opencode and ZCode databases too) and makes no network call.
 
 ## Design decisions
 

@@ -15,7 +15,9 @@
 //   list-files  text + shell `ls -la`, read notes.txt, final text
 //   recover     shell `cat missing.txt` (fails), text + shell `echo recovered`, final text
 //   followup    final text only (a second turn of a resumed session)
-//   delegate    text + the task tool (a subagent session that plays `followup`), final text
+//   delegate    text + the task tool (a subagent session that plays `followup`), final text;
+//               $MOCK_SUBAGENT_TYPE names the subagent type for agents that have no "general"
+//   remember    text + the write tool: a memory file in $MOCK_MEMORY_DIR (ZCode), final text
 
 import http from "node:http";
 import fs from "node:fs";
@@ -24,6 +26,21 @@ const args = process.argv.slice(2);
 const port = Number(args.find((a) => /^\d+$/.test(a)) ?? 18080);
 const logFile = args.includes("--log") ? args[args.indexOf("--log") + 1] : null;
 const log = (o) => logFile && fs.appendFileSync(logFile, JSON.stringify(o) + "\n");
+
+// A memory file as ZCode's Memory prompt asks for it: front matter (name, description, metadata.type)
+// and a body with the reason and how to apply it.
+const MEMORY_FILE = `---
+name: test-database
+description: integration tests run against the real test-db on port 5432, never a mock
+metadata:
+  type: feedback
+---
+
+Integration tests must hit the real test database; do not mock it.
+
+**Why:** pnpm test failed with ECONNREFUSED 127.0.0.1:5432 until test-db was started, and a mock would have hidden that.
+**How to apply:** start test-db before running pnpm test.
+`;
 
 const SCENARIOS = {
   "list-files": [
@@ -38,13 +55,17 @@ const SCENARIOS = {
   ],
   followup: [{ text: "好的，不需要更多改动。" }],
   delegate: [
-    { text: "交给子任务去看看。", tool: ["task", { description: "look around", prompt: "SCENARIO followup: look around", subagent_type: "general" }] },
+    { text: "交给子任务去看看。", tool: ["task", { description: "look around", prompt: "SCENARIO followup: look around", subagent_type: process.env.MOCK_SUBAGENT_TYPE ?? "general" }] },
     { text: "子任务完成了。" },
+  ],
+  remember: [
+    { text: "记到项目记忆里。", tool: ["write", { path: "feedback_test_db.md", content: MEMORY_FILE }] },
+    { text: "记住了：集成测试连真实的测试库，不用 mock。" },
   ],
 };
 
 // pick the offered tool that fits a role and fill its arguments from its schema
-const TOOL_NAME = { shell: /bash|shell|exec|run_command/i, read: /^read|read_file|readfile/i, task: /^(task|agent|invoke_agent)$/i };
+const TOOL_NAME = { shell: /bash|shell|exec|run_command/i, read: /^read|read_file|readfile/i, task: /^(task|agent|invoke_agent)$/i, write: /^(write|write_file)$/i };
 function chooseTool(tools, kind, wanted) {
   const tool = tools.find((t) => TOOL_NAME[kind].test(t.name));
   if (!tool) return null;
@@ -52,9 +73,16 @@ function chooseTool(tools, kind, wanted) {
   const out = {};
   for (const [k, v] of Object.entries(wanted)) {
     const key = kind === "shell" ? props.find((p) => /^(command|cmd)$/i.test(p)) ?? props.find((p) => /command/i.test(p))
-      : kind === "read" ? props.find((p) => /path/i.test(p) || /file/i.test(p))
+      : kind === "read" || (kind === "write" && k === "path") ? props.find((p) => /path/i.test(p) || /file/i.test(p))
       : props.includes(k) ? k : props.find((p) => p.toLowerCase().includes(k.split("_")[0]));
-    out[key ?? k] = k === "path" && process.env.MOCK_WORKDIR ? `${process.env.MOCK_WORKDIR}/${v}` : v;
+    // files are named below the working directory; a written file goes to the memory directory
+    const dir = (kind === "write" && process.env.MOCK_MEMORY_DIR) || process.env.MOCK_WORKDIR;
+    out[key ?? k] = k === "path" && dir ? `${dir}/${v}` : v;
+  }
+  // an agent that lists its subagent types gets one it knows
+  for (const [k, v] of Object.entries(out)) {
+    const allowed = tool.schema?.properties?.[k]?.enum;
+    if (Array.isArray(allowed) && allowed.length > 0 && !allowed.includes(v)) out[k] = allowed[0];
   }
   if (props.includes("agent_name")) out.agent_name = "generalist"; // Gemini CLI's invoke_agent
   // required properties the script does not know (e.g. a description) get a short text

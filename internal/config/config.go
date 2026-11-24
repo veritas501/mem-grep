@@ -3,14 +3,14 @@
 //
 //	MG_<AGENT>_DIRS  session roots of one agent, separated like PATH (":" on Unix): MG_OMP_DIRS,
 //	                 MG_CLAUDE_DIRS, MG_CODEX_DIRS, MG_GEMINI_DIRS, MG_QWEN_DIRS, MG_OPENCODE_DIRS,
-//	                 MG_DSH_DIRS.
+//	                 MG_DSH_DIRS, MG_ZCODE_DIRS.
 //	                 Replaces that agent's default roots.
 //	MG_SUBAGENTS     search subagent sessions too (default 1)
 //	MG_ADVISOR       search omp advisor runs too (default 0)
 //
 // The defaults follow each agent's own conventions, including the variables the agents
 // themselves honour (PI_CODING_AGENT_DIR, CODEX_HOME, GEMINI_CLI_HOME, QWEN_HOME, XDG_DATA_HOME,
-// DSH_HOME).
+// DSH_HOME, ZCODE_STORAGE_DIR, ZCODE_DATA_BASE_DIR).
 package config
 
 import (
@@ -70,6 +70,23 @@ func defaultCodexDirs() []string {
 		home = filepath.Join(homeDir(), ".codex")
 	}
 	return []string{filepath.Join(home, "sessions"), filepath.Join(home, "archived_sessions")}
+}
+
+// defaultZCodeDirs follows ZCode's two ways of placing its CLI storage: the CLI itself uses
+// $ZCODE_STORAGE_DIR/cli (ZCODE_STORAGE_DIR defaults to ~/.zcode), and the desktop and web hosts
+// look for it in $ZCODE_DATA_BASE_DIR/.zcode/cli when that variable moves their data.
+func defaultZCodeDirs() []string {
+	storage := strings.TrimSpace(os.Getenv("ZCODE_STORAGE_DIR"))
+	if storage == "" {
+		storage = filepath.Join(homeDir(), ".zcode")
+	}
+	dirs := []string{filepath.Join(storage, "cli")}
+	if base := strings.TrimSpace(os.Getenv("ZCODE_DATA_BASE_DIR")); base != "" {
+		if d := filepath.Join(base, ".zcode", "cli"); d != dirs[0] {
+			dirs = append(dirs, d)
+		}
+	}
+	return dirs
 }
 
 // envBool reads a boolean variable; unset or empty means def.
@@ -138,6 +155,9 @@ func (c *Config) Dirs(k ir.SourceKind) []string {
 //   - qwen:   ~/.qwen/projects (QWEN_HOME replaces ~/.qwen); sessions are <project>/chats/*.jsonl
 //   - opencode: $XDG_DATA_HOME/opencode (~/.local/share/opencode); one SQLite database, opencode.db
 //   - dsh:    $DSH_HOME/sessions (DSH_HOME defaults to ~/.dsh)
+//   - zcode:  $ZCODE_STORAGE_DIR/cli (ZCODE_STORAGE_DIR defaults to ~/.zcode), and
+//     $ZCODE_DATA_BASE_DIR/.zcode/cli when that is set; the directory holds db/db.sqlite
+//     (sessions) and memories/projects (memory files)
 func DefaultDirs(k ir.SourceKind) []string {
 	switch k {
 	case ir.OMP:
@@ -170,6 +190,8 @@ func DefaultDirs(k ir.SourceKind) []string {
 			home = filepath.Join(homeDir(), ".dsh")
 		}
 		return []string{filepath.Join(home, "sessions")}
+	case ir.ZCode:
+		return defaultZCodeDirs()
 	}
 	return nil
 }

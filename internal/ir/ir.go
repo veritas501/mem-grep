@@ -1,7 +1,7 @@
 // Package ir is the agent-neutral intermediate representation.
 //
 // Every source adapter (omp, Claude Code, Codex, Gemini CLI, Qwen Code, opencode, DeepSeek
-// Harness) turns its own
+// Harness, ZCode) turns its own
 // log format into these types. Everything downstream — search, turn grouping, session listing,
 // `show` and JSON output — consumes only the IR and never looks at source records. When adding an
 // agent, the rule of thumb is: if a downstream package needs to know which agent wrote a session,
@@ -25,6 +25,7 @@ const (
 	Qwen     SourceKind = "qwen"
 	OpenCode SourceKind = "opencode"
 	Dsh      SourceKind = "dsh"
+	ZCode    SourceKind = "zcode"
 )
 
 // Role of a transcript line.
@@ -38,6 +39,8 @@ const (
 	RoleResult    Role = "result"
 	RoleShell     Role = "shell"
 	RoleNote      Role = "note"
+	// RoleMemory is a line of a memory file an agent keeps beside its sessions (ZCode).
+	RoleMemory Role = "memory"
 )
 
 // Line is one rendered line of a compact transcript. Text is already redacted and uses the
@@ -49,7 +52,8 @@ type Line struct {
 	TS      string
 	Role    Role
 	Text    string
-	// TurnStart marks lines that start a new turn (user message, subagent task, branch/reset).
+	// TurnStart marks lines that start a new turn (user message, subagent task, branch/reset,
+	// the heading of a memory).
 	TurnStart bool
 	// Start and End are the byte range of the source record in the (decompressed) file, so a
 	// reader can resume from End without knowing the format.

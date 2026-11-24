@@ -35,8 +35,8 @@ mg search show                     # a term that is also a command name
 | `-s, --case-sensitive` | Match case (no smart case: a capital letter never silently hides matches) |
 | `-w, --word` | Whole words (ASCII word boundaries) |
 | `--any` | A turn matches when any term matches |
-| `-r, --role R` | Only search and print lines of these roles: `user`, `assistant`, `tool` (calls), `result` (tool output), `shell` (commands the user ran), `task` (subagent tasks), `note` (branches, interrupts). Each turn's opening line is still printed as its anchor |
-| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode`, `dsh` |
+| `-r, --role R` | Only search and print lines of these roles: `user`, `assistant`, `tool` (calls), `result` (tool output), `shell` (commands the user ran), `task` (subagent tasks), `note` (branches, interrupts), `memory` (lines of a memory file). Each turn's opening line is still printed as its anchor |
+| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode`, `dsh`, `zcode` |
 | `-p, --project TEXT` | Sessions whose working directory contains TEXT |
 | `--since WHEN`, `--until WHEN` | Turn time bounds: `36h`, `7d`, `2w`, `3m`, `1y`, `2026-10-01` |
 | `-n, --limit N` | At most N results (default 20; 0 = all) |
@@ -61,7 +61,21 @@ mg search show                     # a term that is also a command name
 | `mg sessions [TERM...]` | Sessions, most recent activity first, with their first user message; with terms, only sessions containing a matching turn, with hit counts |
 | `mg version` | Build identity |
 
-References use the first 13 characters of the session id: omp and Codex ids are UUIDv7, whose first 8 characters only change every ~65 seconds; 13 cover the full millisecond timestamp.
+References use the first 13 characters of the session id: omp and Codex ids are UUIDv7, whose first 8 characters only change every ~65 seconds; 13 cover the full millisecond timestamp. ZCode ids are shown without their `sess_` / `sess_subagent_agent_` prefix; a memory file's id is `mem-` and a hash of its path.
+
+### Memory files
+
+ZCode keeps what it learned about a project in Markdown files next to its sessions. mg searches them with everything else: a memory is a session of one turn, its lines have the role `memory`, and its project is the project the memory belongs to (so `-p` and `--since`, by the file's modification time, apply).
+
+```
+$ mg -r memory mock database
+zcode:mem-95137b6fb#1  2026-11-24 09:40  /home/dev/shop  (turn 1/1)
+> MEMORY feedback_test_db.md [feedback]: integration tests run against the real test-db on port 5432, never a mock
+> Integration tests must hit the real test database; do not mock it.
+> **Why:** pnpm test failed with ECONNREFUSED 127.0.0.1:5432 until test-db was started, and a mock would have hidden that.
+```
+
+The opening line names the file below the project's memory directory, the memory's type (`user`, `feedback`, `project`, `reference`) and its description; the lines after it are the file's own, front matter left out. `mg show zcode:mem-95137b6fb` prints the whole memory. Without `-r`, a search covers sessions and memories alike; `-r memory` keeps only memories, and naming the other roles leaves them out.
 
 ## Output
 
@@ -79,7 +93,7 @@ omp:01a181a6-b02b#2  2026-10-28 08:35  /home/dev/work/edge-proxy  (turn 2/3)
 
 - Header: `<ref>  <time>  <project>  (turn i/n)`, plus `subagent:<name>` for subagent sessions.
 - The turn's first line (user message, subagent task or branch note) is always printed as an anchor; matched lines start with `> `, context lines with two spaces.
-- Lines use the transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …`, `✗ tool failed: …`, `USER SHELL $ …`, `[branch: …]`. Newlines inside a line become ` ⏎ `, so one printed line is one transcript line.
+- Lines use the transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …`, `✗ tool failed: …`, `USER SHELL $ …`, `[branch: …]`, `MEMORY file [type]: …`. Newlines inside a line become ` ⏎ `, so one printed line is one transcript line.
 - Footer lines start with `-- `: totals, whether results were cut, and the next command to run. With no match the footer suggests how to broaden the query. After an early stop the totals are lower bounds:
 
 ```
@@ -160,6 +174,13 @@ What did the user insist on or correct?
 
 ```bash
 mg -r user '不要|别|不对|always|never|一律'
+```
+
+What has an agent written down about a project?
+
+```bash
+mg -r memory -p shop-api 'test|测试'                 # memories of that project
+mg sessions -a zcode -p shop-api                    # its memory files are listed with its sessions
 ```
 
 What happened in a project lately?

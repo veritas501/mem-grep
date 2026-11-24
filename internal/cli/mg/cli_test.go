@@ -290,6 +290,82 @@ func TestSearchesADatabaseOfSessions(t *testing.T) {
 	}
 }
 
+// ZCode keeps sessions in a database and memories in Markdown files beside it: both are searched,
+// a memory as a one-turn session of `memory` lines.
+func TestSearchesZCodeSessionsAndMemories(t *testing.T) {
+	home := testutil.ZCodeHome(t)
+	run := func(args ...string) (string, int) {
+		var out, errb bytes.Buffer
+		root := NewRoot()
+		root.SetArgs(append([]string{"--path", home}, args...))
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		err := root.Execute()
+		var code exitCode
+		if errors.As(err, &code) {
+			return out.String(), int(code)
+		}
+		if err != nil {
+			return out.String() + "ERROR: " + err.Error(), 2
+		}
+		return out.String(), 0
+	}
+	out, code := run("econnrefused")
+	if code != 0 || !strings.Contains(out, "zcode:11111111-aaaa#1  ") || !strings.Contains(out, "/home/dev/shop") || !strings.Contains(out, "> ✗ Bash failed: Exit code 1") {
+		t.Fatalf("exit %d\n%s", code, out)
+	}
+	// the reference leaves out ZCode's "sess_" prefix and still resolves
+	out, code = run("show", "zcode:11111111-aaaa#1", "-r", "user")
+	if code != 0 || !strings.Contains(out, "#sess_11111111-aaaa-4bbb-8ccc-000000000001") || !strings.Contains(out, "USER: 用 pnpm 跑测试") {
+		t.Fatalf("show: exit %d\n%s", code, out)
+	}
+	if out, code = run("-a", "zcode", "find"); code != 0 || !strings.Contains(out, "zcode:22222222-aaaa#1") || !strings.Contains(out, "subagent:zcode-Explore") {
+		t.Fatalf("subagent: exit %d\n%s", code, out)
+	}
+	// injected context, thinking, the deleted session and metadata snapshots are not searchable
+	for _, term := range []string{"Environment", "TodoWrite", "reasoning", "deleted", "SNAPSHOT_ONLY_IN_METADATA", "node_type"} {
+		if out, code = run(term); code != 1 {
+			t.Fatalf("%q: exit %d\n%s", term, code, out)
+		}
+	}
+
+	// a term found in two turns of a session and in two memories
+	out, code = run("5433")
+	if code != 0 || !strings.Contains(out, "-- 4 turns in 3 sessions matched") {
+		t.Fatalf("exit %d\n%s", code, out)
+	}
+	out, code = run("-r", "memory", "mock", "production")
+	if code != 0 || !strings.Contains(out, "-- 1 turn in 1 session matched") || !strings.Contains(out, "zcode:mem-") || !strings.Contains(out, "/home/dev/shop") ||
+		!strings.Contains(out, "  MEMORY feedback_test_db.md [feedback]: tests run against the real database on port 5433") ||
+		!strings.Contains(out, "> Never mock the database in integration tests.") || !strings.Contains(out, "> **Why:** a mocked migration passed while production failed.") {
+		t.Fatalf("memory: exit %d\n%s", code, out)
+	}
+	// the footer's reference opens the memory, secrets redacted
+	ref := out[strings.Index(out, "zcode:mem-"):]
+	ref = ref[:strings.IndexAny(ref, "# ")]
+	out, code = run("show", ref)
+	if code != 0 || !strings.Contains(out, "feedback_test_db.md") || !strings.Contains(out, "the token is [REDACTED].") || strings.Contains(out, "sk-abc") {
+		t.Fatalf("show %s: exit %d\n%s", ref, code, out)
+	}
+	if out, code = run("sk-abcdefghijklmnopqrstuvwxyz012345"); code != 1 {
+		t.Fatalf("a secret in a memory must not be found: exit %d\n%s", code, out)
+	}
+	// words of the notation and of the file name
+	if out, code = run("-r", "memory", "feedback_test_db"); code != 0 || !strings.Contains(out, "-- 2 turns in 2 sessions matched") {
+		t.Fatalf("file name: exit %d\n%s", code, out)
+	}
+	if out, code = run("-r", "user", "5433"); code != 0 || !strings.Contains(out, "-- 1 turn in 1 session matched") {
+		t.Fatalf("-r user: exit %d\n%s", code, out)
+	}
+	out, code = run("sessions")
+	if code != 0 || !strings.Contains(out, "-- 6 sessions") || !strings.Contains(out, "MEMORY notes/user_role.md [user]: the user maintains the shop backend") {
+		t.Fatalf("sessions: exit %d\n%s", code, out)
+	}
+	if out, code = run("-r", "memories", "x"); code != 2 || !strings.Contains(out, "memory") {
+		t.Fatalf("unknown role: exit %d\n%s", code, out)
+	}
+}
+
 // Without --path, mg looks where the agents keep their sessions; MG_<AGENT>_DIRS moves that, and
 // an invalid switch is an error, not a silent default.
 func TestSessionRootsComeFromTheEnvironment(t *testing.T) {

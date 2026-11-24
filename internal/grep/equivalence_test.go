@@ -376,7 +376,55 @@ func TestSearchEqualsReferenceOnDatabase(t *testing.T) {
 	}
 }
 
-// Sessions the agents themselves wrote (Gemini CLI, Qwen Code, opencode, omp): the optimised search
+// ZCode: sessions of a database and memory files, both read through the adapter's stream. The
+// words the renderer writes itself (MEMORY, the brackets around a memory's type, the abort and
+// branch notes) must not let the prefilter skip a file that matches.
+func TestSearchEqualsReferenceOnZCode(t *testing.T) {
+	files, err := sources.FilesUnder(testutil.ZCodeHome(t))
+	if err != nil || len(files) != 6 {
+		t.Fatalf("%+v %v", files, err)
+	}
+	memory := []ir.Role{ir.RoleMemory}
+	extra := []Query{
+		{Patterns: []string{"5433"}}, {Patterns: []string{"5433"}, Roles: memory}, {Patterns: []string{"memory"}},
+		{Patterns: []string{"MEMORY", "feedback"}}, {Patterns: []string{"[feedback]:"}}, {Patterns: []string{"feedback_test_db.md"}},
+		{Patterns: []string{"user_role"}, Roles: memory}, {Patterns: []string{"mock", "production"}}, {Patterns: []string{"pnpm"}, Roles: memory},
+		{Patterns: []string{"aborted"}}, {Patterns: []string{"cancelled"}}, {Patterns: []string{"rolled back"}}, {Patterns: []string{"abandoned"}},
+		{Patterns: []string{"Exit code"}}, {Patterns: []string{"Explore"}}, {Patterns: []string{"mysql|sqlite"}}, {Patterns: []string{"usage limit"}},
+		{Patterns: []string{"environment|reasoning|todowrite|snapshot|node_type"}}, {Patterns: []string{"shop"}, Project: "shop", Roles: memory},
+		{Patterns: []string{`\*\*\w+`}, Regex: true}, {Patterns: []string{"description"}}, {Patterns: []string{"zcode-Explore"}, Roles: []ir.Role{ir.RoleTask}},
+	}
+	checkEquivalence(t, files, append(equivalenceQueries(), extra...))
+	hits, st, err := Search(files, Query{Patterns: []string{"mock", "production"}})
+	if err != nil || len(hits) != 1 || st.MatchedSessions != 1 || hits[0].Session.Agent != ir.ZCode || hits[0].Session.Cwd != "/home/dev/shop" {
+		t.Fatalf("%+v %+v %v", hits, st, err)
+	}
+	if ref := hits[0].Ref(); !strings.HasPrefix(ref, "zcode:mem-") || !strings.HasSuffix(ref, "#1") || !strings.HasSuffix(hits[0].Session.Path, "feedback_test_db.md") {
+		t.Fatalf("ref %q path %q", ref, hits[0].Session.Path)
+	}
+	// a reference resolves to the same memory, and a session reference to the session
+	for _, h := range append(hits, mustSearch(t, files, "econnrefused")...) {
+		r, err := ParseRef(h.Ref())
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := Resolve(files, r)
+		if err != nil || s == nil || s.SessionID != h.Session.ID {
+			t.Fatalf("%s: %v %+v", h.Ref(), err, s)
+		}
+	}
+}
+
+func mustSearch(t *testing.T, files []ir.SourceFile, term string) []Hit {
+	t.Helper()
+	hits, _, err := Search(files, Query{Patterns: []string{term}})
+	if err != nil || len(hits) == 0 {
+		t.Fatalf("%q: %d hits, %v", term, len(hits), err)
+	}
+	return hits
+}
+
+// Sessions the agents themselves wrote (Gemini CLI, Qwen Code, opencode, ZCode, omp): the optimised search
 // must agree with the plain one on the text their renderers produce, notation included.
 func TestSearchEqualsReferenceOnAgentFixtures(t *testing.T) {
 	files, err := sources.FilesUnder(testutil.Fixture("."))
@@ -387,7 +435,7 @@ func TestSearchEqualsReferenceOnAgentFixtures(t *testing.T) {
 	for _, f := range files {
 		kinds[f.Kind]++
 	}
-	for _, k := range []ir.SourceKind{ir.OMP, ir.Gemini, ir.Qwen, ir.OpenCode} {
+	for _, k := range []ir.SourceKind{ir.OMP, ir.Gemini, ir.Qwen, ir.OpenCode, ir.ZCode} {
 		if kinds[k] == 0 {
 			t.Fatalf("no %s sessions among %d files: %v", k, len(files), kinds)
 		}
@@ -398,6 +446,7 @@ func TestSearchEqualsReferenceOnAgentFixtures(t *testing.T) {
 		{Patterns: []string{"SCENARIO", "followup"}}, {Patterns: []string{"notes.txt"}, Roles: []ir.Role{ir.RoleResult}},
 		{Patterns: []string{"subagent"}}, {Patterns: []string{"assistant"}}, {Patterns: []string{`exit \d`}, Regex: true},
 		{Patterns: []string{"mem-grep-gen"}}, {Patterns: []string{"结束|完成"}}, {Patterns: []string{"run_shell_command", "bash"}, Any: true},
+		{Patterns: []string{"mock"}, Roles: []ir.Role{ir.RoleMemory}}, {Patterns: []string{"MEMORY"}}, {Patterns: []string{"feedback"}}, {Patterns: []string{"Exit code"}},
 	}
 	checkEquivalence(t, files, append(equivalenceQueries(), extra...))
 	hits, _, err := Search(files, Query{Patterns: []string{"ECONNREFUSED"}, Limit: 0})
@@ -408,7 +457,7 @@ func TestSearchEqualsReferenceOnAgentFixtures(t *testing.T) {
 	for _, h := range hits {
 		seen[h.Session.Agent] = true
 	}
-	for _, k := range []ir.SourceKind{ir.OMP, ir.Gemini, ir.Qwen, ir.OpenCode} {
+	for _, k := range []ir.SourceKind{ir.OMP, ir.Gemini, ir.Qwen, ir.OpenCode, ir.ZCode} {
 		if !seen[k] {
 			t.Errorf("ECONNREFUSED is in the %s fixture but was not found; found in %v", k, seen)
 		}

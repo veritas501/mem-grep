@@ -5,7 +5,7 @@ description: Before coding, use mg to search past sessions for prior fixes, deci
 
 # mg: grep through past sessions
 
-`mg` reads the session logs of omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness, Claude Code and Codex directly and prints matching **turns** (a user message and everything the agent did in response), newest first. Every result has a reference like `omp:01a181a6-b02b#2` that `mg show` accepts. No index, model or network is involved; most calls take 0.1–0.3 s, so make several small ones rather than one clever one.
+`mg` reads the session logs of omp, Gemini CLI, Qwen Code, opencode, DeepSeek Harness, ZCode, Claude Code and Codex directly (and the memory files ZCode keeps per project) and prints matching **turns** (a user message and everything the agent did in response), newest first. Every result has a reference like `omp:01a181a6-b02b#2` that `mg show` accepts. No index, model or network is involved; most calls take 0.1–0.3 s, so make several small ones rather than one clever one.
 
 ## Use it before you start
 
@@ -53,12 +53,12 @@ A hit is often the first try, not the outcome. Signs: "let's try", "workaround",
 - **Distinctive beats descriptive**: error text, command names, package names, file names, ports and hostnames match exactly; words like "problem", "config", "issue" match everything.
 - **Alternatives, not guesses**: list the spellings and synonyms with `|` in one term (`'k8s|kubernetes|kubectl'`), and the user's other language when they mix languages.
 - **Whole words for short English words**: `-w cli` (not `client`), `-w log` (not `login`), `-w go`.
-- **Search where the answer lives** with `-r`: the user's decisions and corrections are `user` lines; what was run is `tool`; what came back (errors, versions, installed packages) is `result`; what the user typed into a shell is `shell`. `-r` also limits what is printed.
+- **Search where the answer lives** with `-r`: the user's decisions and corrections are `user` lines; what was run is `tool`; what came back (errors, versions, installed packages) is `result`; what the user typed into a shell is `shell`; what an agent saved as a memory of the project is `memory`. `-r` also limits what is printed.
 
 ## Fast: let mg skip work
 
 - **Keep the default `-n 20`.** mg reads the newest sessions first and stops once older ones cannot make the list (the footer then says "at least N"). Use `-n 0` only when exact totals matter: it reads everything.
-- **Bound the search**: `--since 2w`, `-p <part of the project dir>`, `-a omp|claude|codex|gemini|qwen|opencode|dsh` and `-r` let mg skip whole files and records unread. They speed things up more than extra terms do.
+- **Bound the search**: `--since 2w`, `-p <part of the project dir>`, `-a omp|claude|codex|gemini|qwen|opencode|dsh|zcode` and `-r` let mg skip whole files and records unread. They speed things up more than extra terms do.
 - **Prefer plain words to regexes.** A literal term (or a regex that starts with literal text, like `github\.com/…`) lets mg rule out files and records from their raw bytes; a regex without literal text (`\d{4,}`) cannot, and is the slowest kind of query.
 - **Don't lead with words mg writes itself.** `the`, `user`, `tool`, `failed`, `branch` and bare numbers also occur in mg's own notation, so they can never be used to skip anything; combine them with a distinctive term.
 - **Bound the work and the output** when a call must come back quickly or small: `--timeout 2s` stops searching after 2 seconds (newest sessions first), `--max-chars 3000` stops printing after about 3000 characters (the first result is always printed). Both say so in the footer.
@@ -73,6 +73,7 @@ A hit is often the first try, not the outcome. Signs: "let's try", "workaround",
 | What the user said, decided, insisted on | `mg -r user <topic>` · corrections: `mg -r user "don't\|never\|always\|instead\|wrong"` |
 | Which library / tool / command is used most | `mg -e '<regex>' -r tool -r result --top` — e.g. `-e 'github\.com/[\w.-]+/[\w.-]+'` for Go modules, `-e 'pip install \S+'`, `-e 'brew install \S+'` |
 | An error seen before | `mg '<distinctive part of the error>' -r result` |
+| What an agent noted down about a project (its memory files) | `mg -r memory -p <dir part> <topic>`, then `mg show <ref>` |
 | Recent work in a project | `mg sessions -p <dir part> --since 2w`, then `mg show <ref>` |
 
 - Too many results: add a term, `-w`, `-r`, `-p <project>`, `--since 7d`.
@@ -89,7 +90,7 @@ A question answered in one or two calls stays in your own context. An open-ended
 
 ## Reading results
 
-- Lines use transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …` (success), `✗ tool failed: …`, `USER SHELL $ …` (the user ran it by hand), `[branch: …]` (the user rewound and abandoned an attempt — often a sign it was wrong).
+- Lines use transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …` (success), `✗ tool failed: …`, `USER SHELL $ …` (the user ran it by hand), `[branch: …]` (the user rewound and abandoned an attempt — often a sign it was wrong), `MEMORY file [type]: …` (a memory file an agent wrote: a summary made at the time, not the conversation itself).
 - `>` marks the lines that matched; the first line of each block is the turn's opening message.
 - What the user said outweighs what an agent proposed: an agent's choice that the user corrected is not a preference.
 - Earlier mg searches are part of the history too: results that are just the output of a previous `mg` call are not new evidence.

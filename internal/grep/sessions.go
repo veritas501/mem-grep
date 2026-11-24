@@ -58,8 +58,9 @@ func ParseRef(s string) (Ref, error) {
 }
 
 // Resolve finds the one session a reference names. File names are checked first (omp, Codex and
-// Claude Code all put the session id in the file name); otherwise sessions are opened and their
-// ids compared.
+// Claude Code all put the session id in the file name), and the ids of sessions inside a database
+// (ZCode's carry a prefix the reference leaves out); otherwise sessions are opened and their ids
+// compared.
 func Resolve(files []ir.SourceFile, r Ref) (*ir.Session, error) {
 	if r.IsPath {
 		fs, err := sources.FilesUnder(r.ID)
@@ -73,7 +74,7 @@ func Resolve(files []ir.SourceFile, r Ref) (*ir.Session, error) {
 	}
 	var byName []ir.SourceFile
 	for _, f := range files {
-		if (r.Agent == "" || f.Kind == r.Agent) && (strings.Contains(filepath.Base(f.Path), r.ID) || (f.Inner != "" && strings.HasPrefix(f.Inner, r.ID))) {
+		if (r.Agent == "" || f.Kind == r.Agent) && (strings.Contains(filepath.Base(f.Path), r.ID) || (f.Inner != "" && strings.Contains(f.Inner, r.ID))) {
 			byName = append(byName, f)
 		}
 	}
@@ -119,7 +120,8 @@ func openOne(f ir.SourceFile) (*ir.Session, error) {
 // Listing is one row of a session list.
 type Listing struct {
 	SessionInfo
-	// First is the first user message (or subagent task), for recognising the session.
+	// First is the first user message (or subagent task, or memory heading), for recognising the
+	// session.
 	First string `json:"first"`
 	// LastTS is the time of the last turn.
 	LastTS string `json:"last"`
@@ -176,7 +178,7 @@ func List(files []ir.SourceFile, q Query) ([]Listing, error) {
 				}
 				first := ""
 				for _, l := range turns[0].Lines {
-					if l.Role == ir.RoleUser || l.Role == ir.RoleTask {
+					if l.Role == ir.RoleUser || l.Role == ir.RoleTask || l.Role == ir.RoleMemory {
 						first = l.Text
 						break
 					}

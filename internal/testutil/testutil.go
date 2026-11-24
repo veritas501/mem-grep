@@ -26,7 +26,7 @@ func FixtureDir() string {
 }
 
 // Fixture returns a path under test/fixtures (sessions the agents themselves wrote: gemini/tmp,
-// qwen/projects, opencode/opencode.db; each directory has the gen.sh that makes them).
+// qwen/projects, opencode/opencode.db, zcode/cli; each directory has the gen.sh that makes them).
 func Fixture(rel string) string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(file), "..", "..", "test", "fixtures", filepath.FromSlash(rel))
