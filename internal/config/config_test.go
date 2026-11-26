@@ -16,7 +16,7 @@ func isolate(t *testing.T) string {
 	for _, v := range []string{"PI_CODING_AGENT_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "QWEN_HOME", "XDG_DATA_HOME", "DSH_HOME", "ZCODE_STORAGE_DIR", "ZCODE_DATA_BASE_DIR"} {
 		t.Setenv(v, "")
 	}
-	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode, ir.Dsh, ir.ZCode} {
+	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode, ir.Dsh, ir.ZCode, ir.Antigravity} {
 		t.Setenv(EnvName(k), "")
 	}
 	t.Setenv("HOME", home)
@@ -31,14 +31,15 @@ func TestDefaultDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 	for k, want := range map[ir.SourceKind][]string{
-		ir.OMP:      {filepath.Join(home, ".omp", "agent", "sessions")},
-		ir.Claude:   {filepath.Join(home, ".claude", "projects")},
-		ir.Codex:    {filepath.Join(home, ".codex", "sessions"), filepath.Join(home, ".codex", "archived_sessions")},
-		ir.Gemini:   {filepath.Join(home, ".gemini", "tmp")},
-		ir.Qwen:     {filepath.Join(home, ".qwen", "projects")},
-		ir.OpenCode: {filepath.Join(home, ".local", "share", "opencode")},
-		ir.Dsh:      {filepath.Join(home, ".dsh", "sessions")},
-		ir.ZCode:    {filepath.Join(home, ".zcode", "cli")},
+		ir.OMP:         {filepath.Join(home, ".omp", "agent", "sessions")},
+		ir.Claude:      {filepath.Join(home, ".claude", "projects")},
+		ir.Codex:       {filepath.Join(home, ".codex", "sessions"), filepath.Join(home, ".codex", "archived_sessions")},
+		ir.Gemini:      {filepath.Join(home, ".gemini", "tmp")},
+		ir.Qwen:        {filepath.Join(home, ".qwen", "projects")},
+		ir.OpenCode:    {filepath.Join(home, ".local", "share", "opencode")},
+		ir.Dsh:         {filepath.Join(home, ".dsh", "sessions")},
+		ir.ZCode:       {filepath.Join(home, ".zcode", "cli")},
+		ir.Antigravity: {filepath.Join(home, ".gemini", "antigravity-cli"), filepath.Join(home, ".gemini", "antigravity")},
 	} {
 		if got := c.Dirs(k); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", k, got, want)

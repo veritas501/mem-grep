@@ -292,6 +292,44 @@ func TestSearchesADatabaseOfSessions(t *testing.T) {
 
 // ZCode keeps sessions in a database and memories in Markdown files beside it: both are searched,
 // a memory as a one-turn session of `memory` lines.
+// Antigravity is found through its own storage root (MG_ANTIGRAVITY_DIRS here), subagents
+// included.
+func TestSearchesAntigravityConversations(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
+	t.Setenv("MG_ANTIGRAVITY_DIRS", testutil.AntigravityHome(t))
+	run := func(args ...string) (string, int) {
+		var out, errb bytes.Buffer
+		root := NewRoot()
+		root.SetArgs(append([]string{"-a", "antigravity"}, args...))
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		err := root.Execute()
+		var code exitCode
+		if errors.As(err, &code) {
+			return out.String(), int(code)
+		}
+		if err != nil {
+			return out.String() + "ERROR: " + err.Error(), 2
+		}
+		return out.String(), 0
+	}
+	ref := "antigravity:" + testutil.AntigravityMain[:13]
+	out, code := run("econnrefused")
+	if code != 0 || !strings.Contains(out, ref+"#1  ") || !strings.Contains(out, "/home/dev/shop") || !strings.Contains(out, "✗ run_command failed: Command exited with code 1.") {
+		t.Fatalf("exit %d\n%s", code, out)
+	}
+	if out, code = run("show", ref+"#3", "-r", "user"); code != 0 || !strings.Contains(out, "USER: 换个思路，先启动 test-db") {
+		t.Fatalf("show: exit %d\n%s", code, out)
+	}
+	if out, code = run("mysql", "-r", "task"); code != 0 || !strings.Contains(out, "subagent:research") {
+		t.Fatalf("subagent: exit %d\n%s", code, out)
+	}
+	if out, code = run("Reminder"); code != 1 {
+		t.Fatalf("runtime reminders must not match: exit %d\n%s", code, out)
+	}
+}
+
 func TestSearchesZCodeSessionsAndMemories(t *testing.T) {
 	home := testutil.ZCodeHome(t)
 	run := func(args ...string) (string, int) {

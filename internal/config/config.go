@@ -158,6 +158,8 @@ func (c *Config) Dirs(k ir.SourceKind) []string {
 //   - zcode:  $ZCODE_STORAGE_DIR/cli (ZCODE_STORAGE_DIR defaults to ~/.zcode), and
 //     $ZCODE_DATA_BASE_DIR/.zcode/cli when that is set; the directory holds db/db.sqlite
 //     (sessions) and memories/projects (memory files)
+//   - antigravity: ~/.gemini/antigravity-cli (the CLI, agy) and ~/.gemini/antigravity (the IDE);
+//     conversations are brain/<id>/.system_generated/logs/transcript_full.jsonl
 func DefaultDirs(k ir.SourceKind) []string {
 	switch k {
 	case ir.OMP:
@@ -192,6 +194,9 @@ func DefaultDirs(k ir.SourceKind) []string {
 		return []string{filepath.Join(home, "sessions")}
 	case ir.ZCode:
 		return defaultZCodeDirs()
+	case ir.Antigravity:
+		gemini := filepath.Join(homeDir(), ".gemini")
+		return []string{filepath.Join(gemini, "antigravity-cli"), filepath.Join(gemini, "antigravity")}
 	}
 	return nil
 }

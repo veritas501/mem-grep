@@ -65,7 +65,7 @@ const SCENARIOS = {
 };
 
 // pick the offered tool that fits a role and fill its arguments from its schema
-const TOOL_NAME = { shell: /bash|shell|exec|run_command/i, read: /^read|read_file|readfile/i, task: /^(task|agent|invoke_agent)$/i, write: /^(write|write_file)$/i };
+const TOOL_NAME = { shell: /bash|shell|exec|run_command/i, read: /^read|read_file|readfile/i, task: /^(task|agent|invoke_agent|invoke_subagent)$/i, write: /^(write|write_file)$/i };
 function chooseTool(tools, kind, wanted) {
   const tool = tools.find((t) => TOOL_NAME[kind].test(t.name));
   if (!tool) return null;
@@ -74,7 +74,9 @@ function chooseTool(tools, kind, wanted) {
   for (const [k, v] of Object.entries(wanted)) {
     const key = kind === "shell" ? props.find((p) => /^(command|cmd)$/i.test(p)) ?? props.find((p) => /command/i.test(p))
       : kind === "read" || (kind === "write" && k === "path") ? props.find((p) => /path/i.test(p) || /file/i.test(p))
-      : props.includes(k) ? k : props.find((p) => p.toLowerCase().includes(k.split("_")[0]));
+      : props.includes(k) ? k : props.find((p) => p.toLowerCase().includes(k.split("_")[0]))
+        // Antigravity's invoke_subagent names the subagent type TypeName
+        ?? (k === "subagent_type" ? props.find((p) => /type/i.test(p)) : undefined);
     // files are named below the working directory; a written file goes to the memory directory
     const dir = (kind === "write" && process.env.MOCK_MEMORY_DIR) || process.env.MOCK_WORKDIR;
     out[key ?? k] = k === "path" && dir ? `${dir}/${v}` : v;

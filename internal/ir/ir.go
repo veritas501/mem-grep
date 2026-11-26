@@ -1,7 +1,7 @@
 // Package ir is the agent-neutral intermediate representation.
 //
 // Every source adapter (omp, Claude Code, Codex, Gemini CLI, Qwen Code, opencode, DeepSeek
-// Harness, ZCode) turns its own
+// Harness, ZCode, Antigravity) turns its own
 // log format into these types. Everything downstream — search, turn grouping, session listing,
 // `show` and JSON output — consumes only the IR and never looks at source records. When adding an
 // agent, the rule of thumb is: if a downstream package needs to know which agent wrote a session,
@@ -26,6 +26,8 @@ const (
 	OpenCode SourceKind = "opencode"
 	Dsh      SourceKind = "dsh"
 	ZCode    SourceKind = "zcode"
+	// Antigravity is Google Antigravity: its CLI (agy) and IDE.
+	Antigravity SourceKind = "antigravity"
 )
 
 // Role of a transcript line.

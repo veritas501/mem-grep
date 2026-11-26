@@ -552,8 +552,11 @@ func contentText(content any) string {
 }
 
 var argKeys = []string{"command", "cmd", "code", "path", "file_path", "filePath", "paths", "file", "pattern",
-	"query", "url", "glob", "agent", "description", "task", "prompt"}
-var longArgKeys = map[string]bool{"command": true, "cmd": true, "code": true, "task": true, "prompt": true, "description": true}
+	"query", "url", "glob", "agent", "description", "task", "prompt",
+	// Antigravity (agy) names its arguments in PascalCase
+	"CommandLine", "Path", "AbsolutePath", "TargetFile", "DirectoryPath", "TypeName", "Prompt", "Recipient", "Message", "TaskId"}
+var longArgKeys = map[string]bool{"command": true, "cmd": true, "code": true, "task": true, "prompt": true, "description": true,
+	"CommandLine": true, "Prompt": true, "Message": true}
 var spaceRe = regexp.MustCompile(`\s+`)
 
 func jsonText(v any) string {

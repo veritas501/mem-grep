@@ -30,6 +30,7 @@ mg sessions -p edge-proxy --since 2w                          # recent sessions 
 | opencode 1.19 | `~/.local/share/opencode/opencode.db` (SQLite) | Checked against a database the CLI wrote (scripted and real model) |
 | DeepSeek Harness | `~/.dsh/sessions` (`DSH_HOME` replaces `~/.dsh`) | Checked against sessions the harness wrote |
 | ZCode 4.0 (zcode 0.18) | `~/.zcode/cli`: `db/db.sqlite` (SQLite) and the memory files in `memories/projects/*/memory` | Checked against a database and a memory ZCode wrote (scripted model) and a real database |
+| Antigravity (agy 1.5) | `~/.gemini/antigravity-cli`, `~/.gemini/antigravity`: `brain/<id>/.system_generated/logs/transcript_full.jsonl` | Checked against real conversations; no generated fixture yet |
 | Claude Code | `~/.claude/projects` | Skeleton; command wrappers, interrupts and subagent layout checked against real transcripts; no fixture yet |
 | Codex | `~/.codex/sessions`, `archived_sessions` (also `.jsonl.zst`) | Skeleton following Codex's own filtering rules; no fixture yet |
 
@@ -101,6 +102,7 @@ mg has no configuration file: everything is a flag or an environment variable, a
 | `MG_OPENCODE_DIRS` | `~/.local/share/opencode` | opencode; the directory holds `opencode.db` (`XDG_DATA_HOME` is honoured) |
 | `MG_DSH_DIRS` | `~/.dsh/sessions` | DeepSeek Harness (`DSH_HOME` replaces `~/.dsh`) |
 | `MG_ZCODE_DIRS` | `~/.zcode/cli` | ZCode's CLI storage: sessions in `db/db.sqlite`, memories in `memories/projects` (`ZCODE_STORAGE_DIR` replaces `~/.zcode`; `$ZCODE_DATA_BASE_DIR/.zcode/cli` is read too when set) |
+| `MG_ANTIGRAVITY_DIRS` | `~/.gemini/antigravity-cli`, `~/.gemini/antigravity` | Antigravity's CLI (agy) and IDE; transcripts under `brain/`, titles and working directories from `conversation_summaries.db` |
 | `MG_SUBAGENTS` | `1` | `0` leaves subagent sessions out |
 | `MG_ADVISOR` | `0` | `1` includes omp advisor runs |
 

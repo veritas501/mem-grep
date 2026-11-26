@@ -108,7 +108,7 @@ func NewRoot() *cobra.Command {
 	root.SetVersionTemplate(version.String("mg") + "\n")
 	root.CompletionOptions.DisableDefaultCmd = true
 	pf := root.PersistentFlags()
-	pf.StringSliceVarP(&o.agents, "agent", "a", nil, "only these agents: omp, claude, codex, gemini, qwen, opencode, dsh, zcode (repeatable or comma-separated)")
+	pf.StringSliceVarP(&o.agents, "agent", "a", nil, "only these agents: omp, claude, codex, gemini, qwen, opencode, dsh, zcode, antigravity (repeatable or comma-separated)")
 	pf.StringVarP(&o.project, "project", "p", "", "only sessions whose working directory contains this text")
 	pf.StringVar(&o.since, "since", "", "only turns at or after this time: 36h, 7d, 2w, 3m, 1y or 2026-10-01")
 	pf.StringVar(&o.until, "until", "", "only turns before this time (same forms as --since)")

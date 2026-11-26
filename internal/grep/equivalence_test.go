@@ -424,6 +424,47 @@ func mustSearch(t *testing.T, files []ir.SourceFile, term string) []Hit {
 	return hits
 }
 
+// Antigravity: transcripts read as JSONL. The notes the renderer writes (branch, assistant error,
+// command output, messages between agents, subagent task) and the PascalCase argument names must
+// not let the prefilter skip a file that matches.
+func TestSearchEqualsReferenceOnAntigravity(t *testing.T) {
+	files, err := sources.FilesUnder(testutil.AntigravityHome(t))
+	if err != nil || len(files) != 2 {
+		t.Fatalf("%+v %v", files, err)
+	}
+	extra := []Query{
+		{Patterns: []string{"5432"}}, {Patterns: []string{"5433"}}, {Patterns: []string{"rolled back"}}, {Patterns: []string{"abandoned"}},
+		{Patterns: []string{"assistant error"}}, {Patterns: []string{"safety filters"}}, {Patterns: []string{"command output"}},
+		{Patterns: []string{"another agent"}}, {Patterns: []string{"TASK for subagent"}}, {Patterns: []string{"mysql"}, Roles: []ir.Role{ir.RoleTask}},
+		{Patterns: []string{"CommandLine"}}, {Patterns: []string{"Exit", "code"}}, {Patterns: []string{"exited with code 1"}},
+		{Patterns: []string{"Reminder|Retries|compaction|ADDITIONAL_METADATA|Created At|secret thoughts"}},
+		{Patterns: []string{"shop"}, Project: "shop"}, {Patterns: []string{`\w+_\w+\(`}, Regex: true}, {Patterns: []string{"task-9"}},
+	}
+	checkEquivalence(t, files, append(equivalenceQueries(), extra...))
+	hits, st, err := Search(files, Query{Patterns: []string{"econnrefused"}})
+	if err != nil || len(hits) != 1 || st.MatchedSessions != 1 || hits[0].Session.Agent != ir.Antigravity || hits[0].Session.Cwd != "/home/dev/shop" {
+		t.Fatalf("%+v %+v %v", hits, st, err)
+	}
+	if ref := hits[0].Ref(); ref != "antigravity:"+testutil.AntigravityMain[:13]+"#1" {
+		t.Fatalf("ref %q", ref)
+	}
+	for _, h := range append(hits, mustSearch(t, files, "audit the mysql")...) {
+		r, err := ParseRef(h.Ref())
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := Resolve(files, r)
+		if err != nil || s == nil || s.SessionID != h.Session.ID {
+			t.Fatalf("%s: %v %+v", h.Ref(), err, s)
+		}
+	}
+	for _, q := range []string{"Reminder", "Retries remaining", "secret thoughts", "Created At"} {
+		if got, _, err := Search(files, Query{Patterns: []string{q}}); err != nil || len(got) != 0 {
+			t.Fatalf("%q must not match: %+v %v", q, got, err)
+		}
+	}
+}
+
 // Sessions the agents themselves wrote (Gemini CLI, Qwen Code, opencode, ZCode, omp): the optimised search
 // must agree with the plain one on the text their renderers produce, notation included.
 func TestSearchEqualsReferenceOnAgentFixtures(t *testing.T) {
