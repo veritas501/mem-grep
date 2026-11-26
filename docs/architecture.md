@@ -22,7 +22,9 @@ Package map:
 | `internal/cli/mg` | The commands (cobra): search, show, sessions, version; flags, printing, exit codes |
 | `internal/grep` | The engine: query compilation, raw-byte prefilter, parallel turn matching, early stop, refs, snippets, `--top` ([mem-grep.md](mem-grep.md)) |
 | `internal/ir` | The intermediate representation everything downstream sees |
-| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go`, `dsh.go`, `zcode.go` checked against sessions the agents wrote; `antigravity.go` checked against real conversations; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
+| `internal/sources` | Adapters (`omp.go`, `gemini.go`, `qwen.go`, `opencode.go`, `dsh.go`, `zcode.go` checked against sessions the agents wrote; `antigravity.go` checked against real conversations; `mem.go` reads mem-grep's own memory store; `claude.go`, `codex.go` unverified skeletons), the shared GenAI-parts rendering (`parts.go`) and the registry |
+| `cmd/mgd`, `internal/cli/mgd` | mgd: pending / read / add / mark / review / accept ([mem-distill.md](mem-distill.md)) |
+| `internal/distill` | mgd's state: the ledger of read turns, turn signals, the review queue and the memory store |
 | `internal/config` | Where each agent keeps its sessions: defaults, overridden by `MG_<AGENT>_DIRS` |
 | `internal/util`, `internal/version` | Redaction and text helpers, build identity |
 
@@ -33,7 +35,7 @@ Every agent writes a different log format. Adapters (`sources.Adapter`) hide tha
 - `ir.Line` is one rendered transcript line: role, text, the id of the source record, whether it starts a turn, and the record's **byte range** in the (decompressed) file. The ranges let a caller resume or re-read a part of a file without knowing its format; mg uses them to skim records it can rule out.
 - `ir.Line.Success` carries a tool result's structured outcome when the source has one (a failing shell command in Gemini CLI or opencode is a "successful" tool call with an exit code; the adapters turn that into a failure).
 - Sessions need not be files: `SourceFile.Inner` names a session inside a shared database (opencode, ZCode). Such an adapter builds the session's byte stream itself (`sources.RawReader`), offsets refer to it, and `Size` is taken from it once opened. `sources.Container` lists the sessions of a database given with `--path`.
-- A memory file (ZCode) is a session too: one turn of `ir.RoleMemory` lines, read through the same kind of stream (`Inner` is its `mem-…` id, `Key` its path), with `Cwd` set to the project it belongs to. The engine needs no special case for it.
+- A memory file (ZCode's, or one of mem-grep's own store) is a session too: one turn of `ir.RoleMemory` lines, read through the same kind of stream (`Inner` is its `mem-…` id, `Key` its path), with `Cwd` set to the project it belongs to. The engine needs no special case for it.
 - `ir.SourceFile.Key` identifies a session. It equals the path except where an agent moves files between representations (Codex compresses cold rollouts to `.jsonl.zst`, so its key is the plain `.jsonl` path) or keeps several sessions in one file (opencode: `<db>#<session id>`). mg identifies sessions by key, never by path.
 - `ir.Session.SkipReason` marks sessions that are not the user's conversation (Codex memory consolidation, non-interactive `codex exec`); mg skips them.
 - Searches read faster through `sources.OpenBytes` with `ScanOptions`: the bytes already read are parsed without reading the file again, records a `Keep` filter rejects are only skimmed for the tree's structure and come back as `ir.Line{Elided: true}` placeholders, and `Raw` skips redaction for the caller to redact candidates. `sources.Synthetic` lists the text renderers write themselves; a renderer that adds notation must add it there, or mg may skip files that match ([mem-grep.md](mem-grep.md#how-a-search-works)).

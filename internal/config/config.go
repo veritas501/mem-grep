@@ -3,8 +3,11 @@
 //
 //	MG_<AGENT>_DIRS  session roots of one agent, separated like PATH (":" on Unix): MG_OMP_DIRS,
 //	                 MG_CLAUDE_DIRS, MG_CODEX_DIRS, MG_GEMINI_DIRS, MG_QWEN_DIRS, MG_OPENCODE_DIRS,
-//	                 MG_DSH_DIRS, MG_ZCODE_DIRS.
+//	                 MG_DSH_DIRS, MG_ZCODE_DIRS; MG_MEM_DIRS for mem-grep's own memory store.
 //	                 Replaces that agent's default roots.
+//	MG_HOME          where mem-grep keeps what it writes itself: distilled memories, the review
+//	                 queue and the ledger of mgd (default $XDG_DATA_HOME/mem-grep). mg only reads
+//	                 its memories directory.
 //	MG_SUBAGENTS     search subagent sessions too (default 1)
 //	MG_ADVISOR       search omp advisor runs too (default 0)
 //
@@ -89,6 +92,19 @@ func defaultZCodeDirs() []string {
 	return dirs
 }
 
+// Home is the directory mem-grep keeps its own data in: $MG_HOME, else $XDG_DATA_HOME/mem-grep
+// (~/.local/share/mem-grep). mgd writes there (memories, queue, ledger); mg only reads memories.
+func Home() string {
+	if d := strings.TrimSpace(os.Getenv("MG_HOME")); d != "" {
+		return filepath.Clean(d)
+	}
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		data = filepath.Join(homeDir(), ".local", "share")
+	}
+	return filepath.Join(data, "mem-grep")
+}
+
 // envBool reads a boolean variable; unset or empty means def.
 func envBool(name string, def bool) (bool, error) {
 	v := os.Getenv(name)
@@ -160,6 +176,7 @@ func (c *Config) Dirs(k ir.SourceKind) []string {
 //     (sessions) and memories/projects (memory files)
 //   - antigravity: ~/.gemini/antigravity-cli (the CLI, agy) and ~/.gemini/antigravity (the IDE);
 //     conversations are brain/<id>/.system_generated/logs/transcript_full.jsonl
+//   - mem:    $MG_HOME/memories, the memories mgd distilled and the user accepted
 func DefaultDirs(k ir.SourceKind) []string {
 	switch k {
 	case ir.OMP:
@@ -197,6 +214,8 @@ func DefaultDirs(k ir.SourceKind) []string {
 	case ir.Antigravity:
 		gemini := filepath.Join(homeDir(), ".gemini")
 		return []string{filepath.Join(gemini, "antigravity-cli"), filepath.Join(gemini, "antigravity")}
+	case ir.Mem:
+		return []string{filepath.Join(Home(), "memories")}
 	}
 	return nil
 }

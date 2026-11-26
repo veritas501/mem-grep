@@ -5,7 +5,8 @@
 # git metadata report "dev"; a plain `go run` / `go build` reports dev / none / unknown.
 
 # mg: mem-grep, rg-style search over agent sessions with no index, model or network.
-BINARIES := mg
+# mgd: the state for distilling memories out of sessions (ledger, review queue, memory store).
+BINARIES := mg mgd
 MODULE   := github.com/veritas501/mem-grep
 BIN_DIR  := bin
 PREFIX  ?= $(HOME)/.local/bin
@@ -33,7 +34,7 @@ all: lint test build
 help: ## List targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-8s %s\n", $$1, $$2}'
 
-build: ## Build bin/mg with the version injected
+build: ## Build bin/mg and bin/mgd with the version injected
 	@mkdir -p $(BIN_DIR)
 	@for b in $(BINARIES); do echo "go build -o $(BIN_DIR)/$$b ./cmd/$$b"; go build $(GO_FLAGS) -o $(BIN_DIR)/$$b ./cmd/$$b || exit 1; done
 

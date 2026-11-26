@@ -2,11 +2,12 @@
 
 Before taking over, read `README.md` (usage) and `docs/` (architecture, session formats, mg reference, development).
 
-- Go ≥ 1.24, one binary: `mg` (mem-grep: offline search over agent sessions, no model, no index). Code lives in packages: the entry point in `cmd/mg`, its commands in `internal/cli/mg`, everything else under `internal/<package>`; no `.go` files at the root.
+- Go ≥ 1.24, two binaries: `mg` (mem-grep: offline search over agent sessions, no model, no index) and `mgd` (the bookkeeping for distilling memories out of sessions: a ledger, a review queue, the memory store; `docs/mem-distill.md`). Code lives in packages: the entry points in `cmd/mg` and `cmd/mgd`, their commands in `internal/cli/mg` and `internal/cli/mgd`, everything else under `internal/<package>`; no `.go` files at the root.
 - Keep dependencies few: `modernc.org/sqlite` (pure Go, no cgo; the opencode and ZCode databases), `klauspost/compress` (zstd; Codex rollouts), `spf13/cobra`. Before adding one, check that it and its dependencies need Go ≤ 1.24 (`go.mod` must stay at `go 1.24.0`).
 - `make` is the only build entry point: `make test` (must pass after every change), `make lint` (gofmt + vet + golangci-lint, 0 issues), `make build`. The version comes only from git via `-ldflags -X` into `internal/version`: never hard-code a version or generate a version file.
 - Try the CLI with `make run ARGS="<command>"`; add `--path test/fixtures` to search the fixtures instead of your own sessions. mg has no configuration file: everything is a flag or an environment variable (`MG_<AGENT>_DIRS`, `MG_SUBAGENTS`, `MG_ADVISOR`, see `internal/config`).
 - Warnings and errors go to stderr; command results go to stdout.
+- State belongs to mgd and lives only in `$MG_HOME`; neither binary holds a model or makes a network call (an agent does the distilling, through `skill/mem-distill`). mg only reads `$MG_HOME/memories`.
 - mg must stay offline and stateless: no model, no network, no index or cache files. Its output is for agents — keep refs, `-- ` footers, `--json` lines and exit codes stable (`docs/mem-grep.md`).
 - Text a renderer writes itself (notation, notes, defaults, markers) goes into `sources.Synthetic`; otherwise mg's raw-byte skipping can miss matches. `TestSearchEqualsReference` (optimised search = plain search) must keep passing.
 - Downstream code only sees the IR (`internal/ir`); everything agent-specific stays in the adapters under `internal/sources/`.

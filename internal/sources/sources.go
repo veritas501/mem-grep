@@ -15,6 +15,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -91,7 +92,7 @@ var Synthetic = []string{
 	"\x00[user ran ", "\x00  [command output: ",
 	"\x00[mode: ", "\x00[message from another agent: ", "[image]", "\n[file: ", "\n",
 	// memory files: "MEMORY file [type]: description"
-	"\x00MEMORY ", " [", "]: ",
+	"\x00MEMORY ", " [", "]: ", "\x00[evidence: ",
 	// util.Truncate / Tail / TruncateMiddle (the omitted count is digits: see grep.skippable)
 	"…\x00", "\x00…", "\n…[", " chars omitted]…\n",
 	// util.Redact
@@ -110,7 +111,7 @@ var SyntheticImplies = map[string][]string{
 }
 
 // All is every known adapter, in sniffing order.
-var All = []Adapter{Antigravity{}, Dsh{}, OMP{}, Codex{}, Qwen{}, Gemini{}, Claude{}, ZCode{}, OpenCode{}}
+var All = []Adapter{Antigravity{}, Dsh{}, OMP{}, Codex{}, Qwen{}, Gemini{}, Claude{}, ZCode{}, OpenCode{}, Mem{}}
 
 // Kinds lists every known agent, in registry order.
 func Kinds() []ir.SourceKind {
@@ -177,6 +178,8 @@ func FileFor(path string) (ir.SourceFile, error) {
 			case ir.ZCode:
 				// a memory file: read through the adapter's stream, like a session in a database
 				f, _ = zcodeMemoryFile(path, f.MtimeMs)
+			case ir.Mem:
+				f = memFile(path, f.MtimeMs)
 			}
 			return f, nil
 		}
@@ -328,7 +331,7 @@ func FilesUnder(path string) ([]ir.SourceFile, error) {
 				if isDatabaseName(found[i].path) {
 					continue // databases are listed below
 				}
-				if isMarkdown(found[i].path) && !(ZCode{}).Sniff(found[i].path, nil) {
+				if isMarkdown(found[i].path) && !(ZCode{}).Sniff(found[i].path, nil) && filepath.Base(filepath.Dir(found[i].path)) != "memories" {
 					continue // any other Markdown file: not worth reading
 				}
 				f, err := FileFor(found[i].path)

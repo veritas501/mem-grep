@@ -88,6 +88,21 @@ mg --top -e 'pip install \S+' -r tool    # count distinct matches instead of lis
 
 Flags, output format, JSON lines, exit codes and recipes: [docs/mem-grep.md](docs/mem-grep.md).
 
+## Distilling memories (`mgd`)
+
+`mgd` is the second binary: the bookkeeping for turning past sessions into memories that later sessions can find. It has no model either — an agent reads the unread turns through it and proposes what is worth keeping ([`skill/mem-distill/SKILL.md`](skill/mem-distill/SKILL.md)); proposals wait in a review queue, and accepted ones are searched by `mg` like any other memory.
+
+```bash
+mgd pending --since 7d          # sessions with turns nobody has read for memories yet
+mgd read omp:01a181a6-b02b      # those turns
+mgd add --name prefer-pnpm --type feedback --description '…' --evidence omp:01a181a6-b02b#2 < body.md
+mgd mark omp:01a181a6-b02b      # done with that session
+mgd review                      # what was proposed; then: mgd accept ID… / mgd reject ID…
+mg -r memory pnpm               # accepted memories are found by mg
+```
+
+Details: [docs/mem-distill.md](docs/mem-distill.md).
+
 ## Configuration
 
 mg has no configuration file: everything is a flag or an environment variable, and it works with none. `--path FILE_OR_DIR` (repeatable) searches only those files instead of the agents' directories. To read sessions from somewhere else, set the agent's variable (several directories separated like `PATH`, `:` on Unix); it replaces that agent's default.
@@ -103,6 +118,8 @@ mg has no configuration file: everything is a flag or an environment variable, a
 | `MG_DSH_DIRS` | `~/.dsh/sessions` | DeepSeek Harness (`DSH_HOME` replaces `~/.dsh`) |
 | `MG_ZCODE_DIRS` | `~/.zcode/cli` | ZCode's CLI storage: sessions in `db/db.sqlite`, memories in `memories/projects` (`ZCODE_STORAGE_DIR` replaces `~/.zcode`; `$ZCODE_DATA_BASE_DIR/.zcode/cli` is read too when set) |
 | `MG_ANTIGRAVITY_DIRS` | `~/.gemini/antigravity-cli`, `~/.gemini/antigravity` | Antigravity's CLI (agy) and IDE; transcripts under `brain/`, titles and working directories from `conversation_summaries.db` |
+| `MG_HOME` | `~/.local/share/mem-grep` | Where mgd keeps its ledger, review queue and memory store (`XDG_DATA_HOME` is honoured); mg reads `memories/` there |
+| `MG_MEM_DIRS` | `$MG_HOME/memories` | The distilled memories mg searches (`-a mem`) |
 | `MG_SUBAGENTS` | `1` | `0` leaves subagent sessions out |
 | `MG_ADVISOR` | `0` | `1` includes omp advisor runs |
 
@@ -118,6 +135,7 @@ An invalid `MG_SUBAGENTS` / `MG_ADVISOR` value is an error, not a silent default
 ## Documentation
 
 - [docs/mem-grep.md](docs/mem-grep.md) — query syntax, output and JSON format, recipes, performance
+- [docs/mem-distill.md](docs/mem-distill.md) — mgd: the distillation loop, memory format, review, safety
 - [docs/architecture.md](docs/architecture.md) — data flow, IR and adapters, transcript notation, design decisions
 - [docs/session-formats.md](docs/session-formats.md) — each agent's session format: verified facts and where they come from
 - [docs/development.md](docs/development.md) — build, test, version injection, releases, Docker / CI, fixtures

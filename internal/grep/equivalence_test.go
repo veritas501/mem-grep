@@ -415,15 +415,6 @@ func TestSearchEqualsReferenceOnZCode(t *testing.T) {
 	}
 }
 
-func mustSearch(t *testing.T, files []ir.SourceFile, term string) []Hit {
-	t.Helper()
-	hits, _, err := Search(files, Query{Patterns: []string{term}})
-	if err != nil || len(hits) == 0 {
-		t.Fatalf("%q: %d hits, %v", term, len(hits), err)
-	}
-	return hits
-}
-
 // Antigravity: transcripts read as JSONL. The notes the renderer writes (branch, assistant error,
 // command output, messages between agents, subagent task) and the PascalCase argument names must
 // not let the prefilter skip a file that matches.
@@ -463,6 +454,40 @@ func TestSearchEqualsReferenceOnAntigravity(t *testing.T) {
 			t.Fatalf("%q must not match: %+v %v", q, got, err)
 		}
 	}
+}
+
+// mem-grep's own memory store: the evidence line is notation around record content.
+func TestSearchEqualsReferenceOnMemStore(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "memories")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\nname: prefer-pnpm\ndescription: \"use pnpm, never npm\"\ntype: feedback\nproject: \"/home/dev/shop\"\nevidence: [omp:01a180aa-27cc#1]\ncreated: 2026-11-20T08:00:00Z\n---\n\nUse pnpm for every script.\n"
+	if err := os.WriteFile(filepath.Join(dir, "3fa91c2e-prefer-pnpm.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	files, err := sources.FilesUnder(dir)
+	if err != nil || len(files) != 1 {
+		t.Fatalf("%+v %v", files, err)
+	}
+	extra := []Query{
+		{Patterns: []string{"pnpm"}}, {Patterns: []string{"evidence"}}, {Patterns: []string{"[evidence:"}}, {Patterns: []string{"01a180aa-27cc"}},
+		{Patterns: []string{"feedback"}}, {Patterns: []string{"prefer-pnpm.md"}}, {Patterns: []string{"script"}, Roles: []ir.Role{ir.RoleMemory}, Project: "shop"},
+		{Patterns: []string{"created|project|name"}}, {Patterns: []string{"MEMORY"}},
+	}
+	checkEquivalence(t, files, append(equivalenceQueries(), extra...))
+	if hits := mustSearch(t, files, "script"); hits[0].Ref() != "mem:3fa91c2e-pref#1" || hits[0].Session.Cwd != "/home/dev/shop" {
+		t.Fatalf("%s %+v", hits[0].Ref(), hits[0].Session)
+	}
+}
+
+func mustSearch(t *testing.T, files []ir.SourceFile, term string) []Hit {
+	t.Helper()
+	hits, _, err := Search(files, Query{Patterns: []string{term}})
+	if err != nil || len(hits) == 0 {
+		t.Fatalf("%q: %d hits, %v", term, len(hits), err)
+	}
+	return hits
 }
 
 // Sessions the agents themselves wrote (Gemini CLI, Qwen Code, opencode, ZCode, omp): the optimised search

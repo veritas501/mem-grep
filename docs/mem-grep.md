@@ -36,7 +36,7 @@ mg search show                     # a term that is also a command name
 | `-w, --word` | Whole words (ASCII word boundaries) |
 | `--any` | A turn matches when any term matches |
 | `-r, --role R` | Only search and print lines of these roles: `user`, `assistant`, `tool` (calls), `result` (tool output), `shell` (commands the user ran), `task` (subagent tasks), `note` (branches, interrupts), `memory` (lines of a memory file). Each turn's opening line is still printed as its anchor |
-| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode`, `dsh`, `zcode`, `antigravity` |
+| `-a, --agent A` | Only these agents: `omp`, `claude`, `codex`, `gemini`, `qwen`, `opencode`, `dsh`, `zcode`, `antigravity`; `mem` is mem-grep's own store of distilled memories ([mem-distill.md](mem-distill.md)) |
 | `-p, --project TEXT` | Sessions whose working directory contains TEXT |
 | `--since WHEN`, `--until WHEN` | Turn time bounds: `36h`, `7d`, `2w`, `3m`, `1y`, `2026-10-01` |
 | `-n, --limit N` | At most N results (default 20; 0 = all) |
@@ -65,7 +65,7 @@ References use the first 13 characters of the session id: omp and Codex ids are 
 
 ### Memory files
 
-ZCode keeps what it learned about a project in Markdown files next to its sessions. mg searches them with everything else: a memory is a session of one turn, its lines have the role `memory`, and its project is the project the memory belongs to (so `-p` and `--since`, by the file's modification time, apply).
+ZCode keeps what it learned about a project in Markdown files next to its sessions, and `mgd` keeps the memories distilled from any agent's sessions in mem-grep's own store ([mem-distill.md](mem-distill.md); these end with an `[evidence: …]` line naming the turns they came from). mg searches them with everything else: a memory is a session of one turn, its lines have the role `memory`, and its project is the project the memory belongs to (so `-p` and `--since`, by the file's modification time, apply).
 
 ```
 $ mg -r memory mock database

@@ -90,7 +90,7 @@ A question answered in one or two calls stays in your own context. An open-ended
 
 ## Reading results
 
-- Lines use transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …` (success), `✗ tool failed: …`, `USER SHELL $ …` (the user ran it by hand), `[branch: …]` (the user rewound and abandoned an attempt — often a sign it was wrong), `MEMORY file [type]: …` (a memory file an agent wrote: a summary made at the time, not the conversation itself).
+- Lines use transcript notation: `USER:`, `ASSISTANT:`, `→ tool(args)`, `✓ tool: …` (success), `✗ tool failed: …`, `USER SHELL $ …` (the user ran it by hand), `[branch: …]` (the user rewound and abandoned an attempt — often a sign it was wrong), `MEMORY file [type]: …` (a memory file: a summary made at the time, not the conversation itself; one that ends with `[evidence: <refs>]` was distilled from those turns, and `mg show <ref>` opens them).
 - `>` marks the lines that matched; the first line of each block is the turn's opening message.
 - What the user said outweighs what an agent proposed: an agent's choice that the user corrected is not a preference.
 - Earlier mg searches are part of the history too: results that are just the output of a previous `mg` call are not new evidence.

@@ -13,10 +13,10 @@ import (
 func isolate(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	for _, v := range []string{"PI_CODING_AGENT_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "QWEN_HOME", "XDG_DATA_HOME", "DSH_HOME", "ZCODE_STORAGE_DIR", "ZCODE_DATA_BASE_DIR"} {
+	for _, v := range []string{"PI_CODING_AGENT_DIR", "CODEX_HOME", "GEMINI_CLI_HOME", "QWEN_HOME", "XDG_DATA_HOME", "DSH_HOME", "ZCODE_STORAGE_DIR", "ZCODE_DATA_BASE_DIR", "MG_HOME"} {
 		t.Setenv(v, "")
 	}
-	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode, ir.Dsh, ir.ZCode, ir.Antigravity} {
+	for _, k := range []ir.SourceKind{ir.OMP, ir.Claude, ir.Codex, ir.Gemini, ir.Qwen, ir.OpenCode, ir.Dsh, ir.ZCode, ir.Antigravity, ir.Mem} {
 		t.Setenv(EnvName(k), "")
 	}
 	t.Setenv("HOME", home)
@@ -40,6 +40,7 @@ func TestDefaultDirs(t *testing.T) {
 		ir.Dsh:         {filepath.Join(home, ".dsh", "sessions")},
 		ir.ZCode:       {filepath.Join(home, ".zcode", "cli")},
 		ir.Antigravity: {filepath.Join(home, ".gemini", "antigravity-cli"), filepath.Join(home, ".gemini", "antigravity")},
+		ir.Mem:         {filepath.Join(home, ".local", "share", "mem-grep", "memories")},
 	} {
 		if got := c.Dirs(k); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", k, got, want)

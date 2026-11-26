@@ -15,7 +15,7 @@ Code lives in packages: the entry point in `cmd/mg`, everything else under `inte
 
 | Target | Does |
 |---|---|
-| `make build` | `bin/mg` with the version injected |
+| `make build` | `bin/mg` and `bin/mgd` with the version injected |
 | `make install` | Build and install to `$(PREFIX)` (default `~/.local/bin`) |
 | `make run ARGS="docker 网络"` | Run from source with the version injected, reading your real sessions |
 | `make test` | `go test ./...` |

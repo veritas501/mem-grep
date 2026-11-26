@@ -77,7 +77,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	_ "modernc.org/sqlite"
 
@@ -342,7 +341,7 @@ func (ZCode) OpenBytes(f ir.SourceFile, raw []byte, _ ScanOptions) (*ir.Session,
 	read := parseJSONL(raw)
 	s := &ir.Session{Kind: ir.ZCode, File: f, CompleteBytes: read.completeBytes, BadLines: read.badLines}
 	if zcodeIsMemory(f) {
-		return zcodeOpenMemory(s, read), nil
+		return openMemory(s, read), nil
 	}
 	var head map[string]any
 	for _, r := range read.records {
@@ -721,57 +720,6 @@ func zcodeSessionDir(dbPath, sessionID string) string {
 	return dir
 }
 
-var (
-	frontMatterKeyRe = regexp.MustCompile(`^\s*([A-Za-z_][\w-]*):\s*(.*)$`)
-	blockScalarRe    = regexp.MustCompile(`^[|>][+-]?\d*$`)
-)
-
-// memoryFrontMatter splits a memory file into the scalar values of its YAML front matter and its
-// body. Nested keys are flattened (metadata.type becomes "type"); this reads the few fields mg
-// needs, not YAML.
-func memoryFrontMatter(content string) (map[string]string, string) {
-	content = strings.ReplaceAll(strings.TrimPrefix(content, "\xef\xbb\xbf"), "\r\n", "\n")
-	lines := strings.Split(content, "\n")
-	if strings.TrimRight(lines[0], " \t") != "---" {
-		return nil, content
-	}
-	end := -1
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimRight(lines[i], " \t") == "---" {
-			end = i
-			break
-		}
-	}
-	if end < 0 {
-		return nil, content
-	}
-	meta := map[string]string{}
-	for i := 1; i < end; i++ {
-		m := frontMatterKeyRe.FindStringSubmatch(lines[i])
-		if m == nil {
-			continue
-		}
-		key, value := m[1], strings.TrimSpace(m[2])
-		if blockScalarRe.MatchString(value) {
-			// a block scalar: the more indented lines that follow
-			var folded []string
-			for i+1 < end && (strings.TrimSpace(lines[i+1]) == "" || strings.HasPrefix(lines[i+1], " ") || strings.HasPrefix(lines[i+1], "\t")) {
-				i++
-				if t := strings.TrimSpace(lines[i]); t != "" {
-					folded = append(folded, t)
-				}
-			}
-			value = strings.Join(folded, " ")
-		} else if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
-			value = value[1 : n-1]
-		}
-		if value != "" {
-			meta[key] = value
-		}
-	}
-	return meta, strings.Join(lines[end+1:], "\n")
-}
-
 // zcodeMemoryStream builds the two lines of a memory: what the file says about itself and where
 // it belongs, then its body.
 func zcodeMemoryStream(f ir.SourceFile) ([]byte, error) {
@@ -796,58 +744,6 @@ func zcodeMemoryStream(f ir.SourceFile) ([]byte, error) {
 	if st, err := os.Stat(f.Path); err == nil {
 		mtime = float64(st.ModTime().UnixNano()) / 1e6
 	}
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(map[string]any{"type": "memory", "id": f.Inner, "file": rel, "project": project, "cwd": cwd, "mtime": mtime,
-		"name": meta["name"], "description": meta["description"], "memory_type": meta["type"], "origin_session": meta["originSessionId"]})
-	_ = enc.Encode(map[string]any{"type": "memory_body", "text": body})
-	return buf.Bytes(), nil
-}
-
-// zcodeOpenMemory renders a memory as a session of one turn: a `MEMORY file [type]: description`
-// line, then the file's non-empty lines as they are.
-func zcodeOpenMemory(s *ir.Session, read jsonlRead) *ir.Session {
-	var lines []ir.Line
-	for _, r := range read.records {
-		switch str(r.obj, "type") {
-		case "memory":
-			s.SessionID = str(r.obj, "id")
-			s.Cwd = str(r.obj, "cwd")
-			s.Title = str(r.obj, "description")
-			if s.Title == "" {
-				s.Title = str(r.obj, "name")
-			}
-			if ms, ok := r.obj["mtime"].(float64); ok && ms > 0 {
-				s.StartedAt = time.UnixMilli(int64(ms)).UTC().Format("2006-01-02T15:04:05.000Z")
-			}
-			text := "MEMORY " + str(r.obj, "file")
-			if t := str(r.obj, "memory_type"); t != "" {
-				text += " [" + t + "]"
-			}
-			if d := str(r.obj, "description"); d != "" {
-				text += ": " + util.Truncate(d, 400)
-			}
-			lines = append(lines, ir.Line{EntryID: s.SessionID, TS: s.StartedAt, Role: ir.RoleMemory, Text: util.Redact(text), TurnStart: true, Start: r.start, End: r.end})
-		case "memory_body":
-			for _, l := range strings.Split(str(r.obj, "text"), "\n") {
-				if l = strings.TrimRight(l, " \t\r"); !util.IsSpaceOnly(l) {
-					lines = append(lines, ir.Line{EntryID: s.SessionID, TS: s.StartedAt, Role: ir.RoleMemory, Text: util.Redact(util.TruncateMiddle(l, 4000)), Start: r.start, End: r.end})
-				}
-			}
-		}
-	}
-	if s.SessionID == "" {
-		return nil
-	}
-	s.Render = func(from, to int64) []ir.Line {
-		var out []ir.Line
-		for _, l := range lines {
-			if l.Start >= from && (to < 0 || l.Start < to) {
-				out = append(out, l)
-			}
-		}
-		return out
-	}
-	return s
+	return memoryStream(memoryRecord{ID: f.Inner, File: rel, Project: project, Cwd: cwd, MtimeMs: mtime, Name: meta["name"],
+		Description: meta["description"], Type: meta["type"], OriginSession: meta["originSessionId"], Body: body}), nil
 }

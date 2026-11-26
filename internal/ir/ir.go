@@ -28,6 +28,8 @@ const (
 	ZCode    SourceKind = "zcode"
 	// Antigravity is Google Antigravity: its CLI (agy) and IDE.
 	Antigravity SourceKind = "antigravity"
+	// Mem is mem-grep's own store of distilled memories, not an agent.
+	Mem SourceKind = "mem"
 )
 
 // Role of a transcript line.
@@ -41,7 +43,8 @@ const (
 	RoleResult    Role = "result"
 	RoleShell     Role = "shell"
 	RoleNote      Role = "note"
-	// RoleMemory is a line of a memory file an agent keeps beside its sessions (ZCode).
+	// RoleMemory is a line of a memory file: one an agent keeps beside its sessions (ZCode), or
+	// one distilled from sessions into mem-grep's own store.
 	RoleMemory Role = "memory"
 )
 
