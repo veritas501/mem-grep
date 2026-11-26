@@ -73,6 +73,19 @@ make install            # ~/.local/bin/mg (override with PREFIX=…)
 [`skill/mem-grep/SKILL.md`](skill/mem-grep/SKILL.md) to your agent's skills
 directory so it reaches for `mg` whenever the answer may be in earlier work.
 
+The skill alone is not enough. An agent loads a skill only when its one-line description looks
+relevant, and a task that seems general (an API offset, a build error) rarely does, so the agent
+answers from general knowledge although an earlier session holds this machine's answer. Add this
+line to the instruction file your agent always loads (`AGENTS.md`, `CLAUDE.md` or its equivalent):
+
+```
+Past sessions on this machine are searchable with `mg <word>` (under a second; see the mem-grep skill). Before starting work that names a project, device, host, tool, error, or a task you may have done here before, run one mg search first: the problem may already have been solved here, or the user may already have said how they want it done. General knowledge questions that involve nothing on this machine need no search.
+```
+
+In an A/B test on ten real problems whose answers were in earlier sessions (one model, ten
+rounds), agents with the old skill searched in 2 of 10; with the current skill and this line, in 9
+of 10, and none searched for the four general questions.
+
 ## Everyday use
 
 ```bash
