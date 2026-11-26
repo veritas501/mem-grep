@@ -130,8 +130,9 @@ func TestAntigravityWorkspace(t *testing.T) {
 		`[]`: "",
 		``:   "",
 		`["https://example.com/x","file:///srv/app/a b"]`: "/srv/app/a b",
+		`["file:///C:/Users/dev/shop"]`:                   filepath.FromSlash("C:/Users/dev/shop"),
 	} {
-		if got := filepath.ToSlash(antigravityWorkspace(in)); got != want {
+		if got := antigravityWorkspace(in); got != want {
 			t.Errorf("%s: got %q want %q", in, got, want)
 		}
 	}

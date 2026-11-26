@@ -84,10 +84,11 @@ func TestEnvironmentReplacesTheDefaults(t *testing.T) {
 	t.Setenv("MG_CODEX_DIRS", "/a"+sep+sep+"/b c")
 	t.Setenv("MG_OPENCODE_DIRS", "/db")
 	c, _ := Load()
-	if got := c.Dirs(ir.Codex); !slices.Equal(got, []string{"/a", "/b c"}) {
+	// each directory is cleaned (on Windows that also turns / into \)
+	if got := c.Dirs(ir.Codex); !slices.Equal(got, []string{filepath.FromSlash("/a"), filepath.FromSlash("/b c")}) {
 		t.Errorf("codex: %v", got)
 	}
-	if got := c.Dirs(ir.OpenCode); !slices.Equal(got, []string{"/db"}) {
+	if got := c.Dirs(ir.OpenCode); !slices.Equal(got, []string{filepath.FromSlash("/db")}) {
 		t.Errorf("opencode: %v", got)
 	}
 	if got := c.Dirs(ir.Claude); len(got) != 1 || filepath.Base(got[0]) != "projects" {

@@ -191,9 +191,11 @@ func antigravityWorkspace(uris string) string {
 		}
 		path := p.Path
 		if len(path) > 2 && path[0] == '/' && path[2] == ':' {
-			path = path[1:] // file:///C:/… on Windows
+			// file:///C:/… is a Windows path; anything else (a POSIX path, also from WSL or a
+			// remote workspace) is kept as written, whatever system mg runs on
+			return filepath.FromSlash(path[1:])
 		}
-		return filepath.FromSlash(path)
+		return path
 	}
 	return ""
 }
